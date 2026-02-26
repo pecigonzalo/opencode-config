@@ -33,6 +33,8 @@ metadata:
 - Any read-only information gathering
 - Quick status checks
 
+**Explorer output:** Always ask for summary + file paths + line ranges. Do not request full file contents — if you need specific content after discovery, read the identified ranges directly or delegate to an implementation agent.
+
 ### Use Thinker When:
 - User asks "how should I...", "what's the best way..."
 - Need to plan multi-step work

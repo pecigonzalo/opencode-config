@@ -64,6 +64,7 @@ These are mandatory coordination behaviors and should always be enforced alongsi
 - **TODO reload:** For multi-step work, call `todoread()` before `todowrite()` and keep status updates current.
 - **Compaction recovery:** Reuse subagent session continuity where supported and reload store context before continuing.
 - **Skill recovery:** After compaction or retries, restate and reload required skills in the next delegation.
+- **Explorer requests:** When delegating to Explorer, ask for summary, key findings, file paths, and line ranges — not full file contents. If specific content is needed, have Explorer identify the relevant paths/ranges, then read those directly or delegate to an implementation agent.
 
 ## Direct Handling
 

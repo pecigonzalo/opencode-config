@@ -43,6 +43,8 @@ Find the right files and evidence quickly so other agents can act with high conf
 
 ## Output Expectations
 
-- Key findings tied to concrete file references
-- Notable uncertainties or gaps
-- Optional next search directions when relevant
+- Summarize findings; highlight key areas relevant to the question
+- Cite exact file paths and line ranges for every claim
+- Include minimal excerpts only — cap at ~60 lines total across all snippets
+- Never return full file contents by default
+- If full content seems necessary, surface that to the orchestrator rather than pasting it
