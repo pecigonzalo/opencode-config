@@ -214,6 +214,16 @@
         "Authorization": "Bearer {env:VANTAGE_API_TOKEN}",
       },
     },
+    // Playwright MCP - localhost only, core tools only (no vision/pdf/testing/tracing)
+    "Playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "@playwright/mcp@latest",
+        "--allowed-origins",
+        "http://localhost:*;https://localhost:*;http://127.0.0.1:*;https://127.0.0.1:*",
+      ],
+    },
   },
   // Misc settings
   "autoupdate": true,
