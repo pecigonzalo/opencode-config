@@ -826,6 +826,4 @@ func Abs[T Signed](n T) T {
 - [ ] Exported structs do not embed types that leak API surface; named fields + forwarding methods used instead
 - [ ] Keys, tokens, and IDs are generated with `crypto/rand`, never `math/rand`
 
-Base directory for this skill: file:///Users/pecigonzalo/.config/opencode/skills/standards-go
-Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.
 Note: file list is sampled.

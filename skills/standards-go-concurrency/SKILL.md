@@ -671,6 +671,4 @@ func (c *Cache) Lookup(key string) (string, bool) { ... }
 - [ ] errgroup workers check and respect the group's ctx; SetLimit used when input is unbounded
 - [ ] sync.Once (or OnceValue/OnceFunc in 1.21+) used for one-time initialization
 
-Base directory for this skill: file:///Users/pecigonzalo/.config/opencode/skills/standards-go-concurrency
-Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.
 Note: file list is sampled.

@@ -647,6 +647,4 @@ func FuzzParseConfig(f *testing.F) {
 - [ ] E2E tests live in a top-level `e2e/` or `test/e2e/` directory, are gated by an environment variable (`RUN_E2E`), and never run as part of `go test ./...`
 - [ ] Example functions have `// Output:` comment so they run as tests
 
-Base directory for this skill: file:///Users/pecigonzalo/.config/opencode/skills/standards-go-testing
-Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.
 Note: file list is sampled.

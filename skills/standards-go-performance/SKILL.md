@@ -597,6 +597,4 @@ Feed a real production CPU profile back into the compiler to enable inlining and
 - [ ] pprof HTTP endpoint bound to loopback/internal address only
 - [ ] PGO profile collected from representative production traffic (not synthetic load)
 
-Base directory for this skill: file:///Users/pecigonzalo/.config/opencode/skills/standards-go-performance
-Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.
 Note: file list is sampled.

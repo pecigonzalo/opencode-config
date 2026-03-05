@@ -329,4 +329,3 @@ test('should validate input properly', () => {
 - [ ] Regular security testing performed
 
 Security is everyone's responsibility. Always assume the worst-case scenario and design defenses accordingly.</content>
-<parameter name="filePath">/Users/pecigonzalo/.config/opencode/context/core/standards/security.md
