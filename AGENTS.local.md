@@ -8,6 +8,7 @@ This repository contains:
 - **`agents/`**: Agent definitions (universal, heavy, light, thinker, explorer)
 - **`skills/`**: Domain-specific skill modules loaded on-demand by agents
 - **`tools/`**: Custom TypeScript tools extending OpenCode's capabilities
+- **`gitro`**: fallback read-only git tool — only use when `bash` is not available (e.g. in read-only agents like `explorer`); prefer `bash git ...` in implementation agents
 - **`plugins/`**: OpenCode plugins for system-level integrations
 - **`opencode.jsonc`**: Primary configuration file (agent models, permissions, settings)
 - **`.opencode/sessions/`**: Runtime data (store.json for persistent memory)
@@ -25,7 +26,7 @@ When developing custom tools (in `tools/` or `plugins/`):
 - **Test framework**: Bun's built-in test runner
 - **Run tests**: `bun test`
 - **Single test**: `bun test <file_path>`
-  - *Example*: `bun test tools/storeread.test.ts`
+  - *Example*: `bun test tests/storeread.test.ts`
 - **Pattern**: Follow **AAA** (Arrange-Act-Assert)
   - **Arrange**: Set up test data and mocks
   - **Act**: Execute the tool function
