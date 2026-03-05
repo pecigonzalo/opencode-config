@@ -98,7 +98,7 @@ export default tool({
       id,
       summary: args.summary,
       tags: args.tags,
-      status: args.status,
+      status: args.status ?? "active",
       links: args.links,
       data: args.data,
       updatedAt: now,
