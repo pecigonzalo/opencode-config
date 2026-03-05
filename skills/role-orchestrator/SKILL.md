@@ -34,6 +34,25 @@ metadata:
 - Quick status checks
 
 **Explorer output:** Always ask for summary + file paths + line ranges. Do not request full file contents — if you need specific content after discovery, read the identified ranges directly or delegate to an implementation agent.
+**Explorer constraints:** Explorer is a read-only agent with bash **denied**. Do NOT include bash commands, shell scripts, or any execution instructions in explorer delegation prompts. Use only grep/glob/list/read tools. If you need shell commands run, delegate to an implementation agent instead.
+
+**Explorer delegation template:**
+```
+Task({
+  subagent_type: "explorer",
+  description: "<5-10 word discovery summary>",
+  prompt: `
+Task: <what to find/discover>
+
+Return:
+- A short summary of findings
+- Exact file paths and line ranges for every relevant location
+- Minimal excerpts only (cap ~60 lines total across all snippets)
+- Do NOT return full file contents
+- Do NOT run bash/shell commands — use only grep/glob/list/read tools
+  `
+})
+```
 
 ### Use Thinker When:
 - User asks "how should I...", "what's the best way..."
@@ -411,6 +430,7 @@ Before EVERY action, verify:
 - [ ] Did I review output and run quality gate?
 - [ ] Did I load all referenced store items?
 - [ ] For multi-step tasks: Did I update TODO?
+- [ ] For Explorer delegations: Does the prompt ask for summary + paths + line ranges only — **not full file contents**?
 
 **If ANY unchecked → Fix before responding**
 

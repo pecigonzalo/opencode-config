@@ -573,16 +573,12 @@ Feed a real production CPU profile back into the compiler to enable inlining and
 
 ## Skill Loading Triggers
 
-| Situation | Load skills |
+| Situation | Also load |
 |---|---|
-| CPU profiling or hot paths | `standards-go-performance` |
-| Reducing allocations | `standards-go-performance` |
-| GC tuning or GOMEMLIMIT | `standards-go-performance` |
-| Latency / trace analysis | `standards-go-performance`, `standards-observability` |
-| Writing performance benchmarks | `standards-go-performance`, `standards-go-testing` |
-| Reviewing allocation-sensitive code | `standards-go-performance`, `role-code-review` |
-| Concurrency lock contention | `standards-go-performance`, `standards-go-concurrency` |
-| PGO or production profiling | `standards-go-performance` |
+| Latency / trace analysis | `standards-observability` |
+| Writing performance benchmarks | `standards-go-testing` |
+| Reviewing allocation-sensitive code | `role-code-review` |
+| Concurrency lock contention | `standards-go-concurrency` |
 
 ## Verification Checklist
 

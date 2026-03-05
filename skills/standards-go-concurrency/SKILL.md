@@ -63,12 +63,10 @@ go test -count=1 -run TestWorkerPool -v ./...  # verify pool goroutine count
 
 Propagate deadlines and cancellation signals through the call graph so any blocking operation can be interrupted cleanly.
 
-- **When:** Any blocking operation — I/O, DB queries, HTTP calls, or work spanning multiple goroutines.
-- **How:**
-  - Accept `ctx context.Context` as the first parameter of every function that may block.
-  - In loops, add a `select` arm on `ctx.Done()` alongside the work arm.
-  - Derive child contexts with `context.WithTimeout` / `context.WithCancel` from the caller's ctx, never from `context.Background()`.
-  - Do not store ctx in struct fields; pass it through the call chain instead.
+- Accept `ctx context.Context` as the first parameter of every function that may block.
+- In loops, add a `select` arm on `ctx.Done()` alongside the work arm.
+- Derive child contexts with `context.WithTimeout` / `context.WithCancel` from the caller's ctx, never from `context.Background()`.
+- Do not store ctx in struct fields; pass it through the call chain instead.
 
 ```go
 // ✅ Correct: context threaded through loop
@@ -97,8 +95,9 @@ func process(ctx context.Context, jobs <-chan Job) error {
 }
 ```
 
-- **Pitfalls:** Forgetting `select ctx.Done()` in tight inner loops; shadowing `ctx` with a new variable inside the loop body; deriving from `context.Background()` instead of the parent.
-- **Verify:** Unit tests that cancel ctx mid-flight and assert the function returns promptly; `go test -race ./...`.
+Forgetting `select ctx.Done()` in tight inner loops; shadowing `ctx` with a new variable inside the loop body; deriving from `context.Background()` instead of the parent.
+
+Unit tests that cancel ctx mid-flight and assert the function returns promptly; `go test -race ./...`.
 
 ---
 
@@ -106,12 +105,10 @@ func process(ctx context.Context, jobs <-chan Job) error {
 
 Every goroutine must have a single owner responsible for starting, stopping, and joining it.
 
-- **When:** Spawning goroutines anywhere — libraries, servers, background workers, request handlers.
-- **How:**
-  - Assign ownership at the call site that calls `go func(...)`.
-  - Provide a stop mechanism: a cancellable `ctx` or a dedicated done/quit channel.
-  - Join with `sync.WaitGroup` or `errgroup` before the owner returns or exits.
-  - Stop `time.Ticker` with `defer ticker.Stop()` in the owning goroutine.
+- Assign ownership at the call site that calls `go func(...)`.
+- Provide a stop mechanism: a cancellable `ctx` or a dedicated done/quit channel.
+- Join with `sync.WaitGroup` or `errgroup` before the owner returns or exits.
+- Stop `time.Ticker` with `defer ticker.Stop()` in the owning goroutine.
 
 ```go
 // ✅ Correct: owned, stoppable, joined
@@ -170,8 +167,9 @@ func ProcessItems(items []Item) ([]Result, error) { ... }
 go func() { results, err := ProcessItems(items) }()
 ```
 
-- **Pitfalls:** Fire-and-forget goroutines inside HTTP handlers that outlive the request; closing channels from multiple goroutines causing panics; leaking `time.Ticker` by only calling `Stop` without draining.
-- **Verify:** pprof goroutine profile stays bounded under load; tests include cancellation and timeout paths (see `standards-testing`).
+Fire-and-forget goroutines inside HTTP handlers that outlive the request; closing channels from multiple goroutines causing panics; leaking `time.Ticker` by only calling `Stop` without draining.
+
+pprof goroutine profile stays bounded under load; tests include cancellation and timeout paths (see `standards-testing`).
 
 ---
 
@@ -179,12 +177,10 @@ go func() { results, err := ProcessItems(items) }()
 
 Use `golang.org/x/sync/errgroup` when launching parallel work where the first error should cancel everything else.
 
-- **When:** Parallel I/O, concurrent sub-tasks, pipeline stages where partial failure is fatal.
-- **How:**
-  - Create with `errgroup.WithContext(parentCtx)` so the derived ctx is cancelled on the first error.
-  - Pass the group's ctx into every worker so they can exit early.
-  - Collect results into pre-allocated slices (index by worker ID) to avoid data races on shared accumulators.
-  - Bound parallelism with `g.SetLimit(n)` (Go 1.x/x/sync v0.1+) to cap the number of concurrent goroutines in the group — prevents unbounded goroutine creation when iterating over large inputs.
+- Create with `errgroup.WithContext(parentCtx)` so the derived ctx is cancelled on the first error.
+- Pass the group's ctx into every worker so they can exit early.
+- Collect results into pre-allocated slices (index by worker ID) to avoid data races on shared accumulators.
+- Bound parallelism with `g.SetLimit(n)` (Go 1.x/x/sync v0.1+) to cap the number of concurrent goroutines in the group — prevents unbounded goroutine creation when iterating over large inputs.
 
 ```go
 // ✅ Correct: workers respect cancellation; no shared mutable state
@@ -221,8 +217,9 @@ for _, inp := range inputs {
 if err := g.Wait(); err != nil { ... }
 ```
 
-- **Pitfalls:** Workers that ignore the group's ctx and never check `ctx.Done()`; appending to a shared slice without synchronization (data race).
-- **Verify:** `go test -race ./...`; deterministic tests using fakes or in-process stubs (see `standards-testing`).
+Workers that ignore the group's ctx and never check `ctx.Done()`; appending to a shared slice without synchronization (data race).
+
+`go test -race ./...`; deterministic tests using fakes or in-process stubs (see `standards-testing`).
 
 ---
 
@@ -230,17 +227,16 @@ if err := g.Wait(); err != nil { ... }
 
 Distribute one input stream across N workers (fan-out) and merge their output streams back into one (fan-in) for parallel throughput without errgroup.
 
-- **When:** Saturating N workers from a single input channel to collect results into one output — useful when errors are non-fatal and partial results are acceptable. Prefer `errgroup` when partial failure must abort all workers.
-- **How:**
-  - Fan-out: start N worker goroutines, each reading from the **same** input channel (Go's scheduler distributes sends fairly).
-  - Fan-in: each worker writes to its own output channel; a merge goroutine reads all outputs and forwards to a single result channel.
-  - The merge goroutine uses a `sync.WaitGroup` to close the output channel only after all workers are done.
-  - Thread `ctx` through every goroutine so cancellation propagates.
-- **Pitfalls:**
-  - Closing the shared input channel before all fan-out workers have finished causes `range` to drain; ensure the producer closes only when all items are submitted.
-  - Not closing merged output — downstream consumers block forever.
-  - Using a shared result slice instead of a channel introduces data races.
-- **Verify:** `go test -race ./...`; final result count equals input count; `runtime.NumGoroutine()` returns to baseline after pipeline drains.
+- Fan-out: start N worker goroutines, each reading from the **same** input channel (Go's scheduler distributes sends fairly).
+- Fan-in: each worker writes to its own output channel; a merge goroutine reads all outputs and forwards to a single result channel.
+- The merge goroutine uses a `sync.WaitGroup` to close the output channel only after all workers are done.
+- Thread `ctx` through every goroutine so cancellation propagates.
+
+- Closing the shared input channel before all fan-out workers have finished causes `range` to drain; ensure the producer closes only when all items are submitted.
+- Not closing merged output — downstream consumers block forever.
+- Using a shared result slice instead of a channel introduces data races.
+
+`go test -race ./...`; final result count equals input count; `runtime.NumGoroutine()` returns to baseline after pipeline drains.
 
 ```go
 // merge drains all cs channels into one; closes out when all are done.
@@ -291,12 +287,10 @@ for r := range results { handle(r) }
 
 Channels are owned by the sender — only the sender may close a channel.
 
-- **When:** Any use of channels for coordination, pipelines, or signalling.
-- **How:**
-  - The goroutine that creates and writes to a channel is its owner and is the only one that closes it.
-  - Use directional types at function boundaries: `chan<- T` for producers, `<-chan T` for consumers.
-  - A nil channel blocks forever on send and receive — use this intentionally to disable a `select` arm.
-  - **Buffer sizing rule of thumb:** default to unbuffered (`0`) or size `1`. Any other size must be justified by answering: how is the size determined? what prevents it filling under load? what happens when writers block? Arbitrary sizes hide backpressure and inflate memory.
+- The goroutine that creates and writes to a channel is its owner and is the only one that closes it.
+- Use directional types at function boundaries: `chan<- T` for producers, `<-chan T` for consumers.
+- A nil channel blocks forever on send and receive — use this intentionally to disable a `select` arm.
+- **Buffer sizing rule of thumb:** default to unbuffered (`0`) or size `1`. Any other size must be justified by answering: how is the size determined? what prevents it filling under load? what happens when writers block? Arbitrary sizes hide backpressure and inflate memory.
 
 ```go
 // ✅ Correct: producer owns and closes; consumer reads with range
@@ -321,8 +315,9 @@ func consume(ch chan int) {
 }
 ```
 
-- **Pitfalls:** Multiple goroutines closing the same channel (panic); buffered channels that grow unboundedly under load.
-- **Verify:** Tests exercise the closed-channel path; `select` loops always have a ctx cancellation arm to prevent deadlock.
+Multiple goroutines closing the same channel (panic); buffered channels that grow unboundedly under load.
+
+Tests exercise the closed-channel path; `select` loops always have a ctx cancellation arm to prevent deadlock.
 
 ---
 
@@ -330,13 +325,11 @@ func consume(ch chan int) {
 
 Use mutexes only when shared mutable state cannot be confined to a single goroutine.
 
-- **When:** State accessed by multiple goroutines that cannot be passed through channels (e.g., caches, registries).
-- **How:**
-  - Keep critical sections as small as possible — compute outside the lock, hold only for the read/write.
-  - Never perform I/O (network, disk, logging) while holding a lock.
-  - Document lock ordering when multiple mutexes are acquired together.
-  - Prefer `sync.Mutex` by default; only upgrade to `sync.RWMutex` after benchmark evidence of a read-heavy bottleneck.
-  - **Do not embed mutexes in structs** — embedding promotes `Lock`/`Unlock` to the public API. Use a named field `mu sync.Mutex` so the mutex stays an implementation detail:
+- Keep critical sections as small as possible — compute outside the lock, hold only for the read/write.
+- Never perform I/O (network, disk, logging) while holding a lock.
+- Document lock ordering when multiple mutexes are acquired together.
+- Prefer `sync.Mutex` by default; only upgrade to `sync.RWMutex` after benchmark evidence of a read-heavy bottleneck.
+- **Do not embed mutexes in structs** — embedding promotes `Lock`/`Unlock` to the public API. Use a named field `mu sync.Mutex` so the mutex stays an implementation detail:
 
 ```go
 // ❌ Wrong: embedding makes Lock/Unlock part of the exported API
@@ -379,8 +372,9 @@ func (c *Cache) Set(key string, val []byte) {
 }
 ```
 
-- **Pitfalls:** Lock inversion (acquiring locks in different orders across goroutines causes deadlock); copying mutex-embedding structs by value; using `RWMutex.RLock` for write operations.
-- **Verify:** `go test -race ./...`; contention benchmarks (`go test -bench . -benchmem`); mutex profile (`/debug/pprof/mutex`) when a hot path is suspected (see `standards-observability`).
+Lock inversion (acquiring locks in different orders across goroutines causes deadlock); copying mutex-embedding structs by value; using `RWMutex.RLock` for write operations.
+
+`go test -race ./...`; contention benchmarks (`go test -bench . -benchmem`); mutex profile (`/debug/pprof/mutex`) when a hot path is suspected (see `standards-observability`).
 
 ---
 
@@ -388,16 +382,15 @@ func (c *Cache) Set(key string, val []byte) {
 
 Use `sync.Once` to perform an action exactly once across all goroutines, regardless of how many call it concurrently.
 
-- **When:** Lazy singleton initialization (DB connection, config parse, embedded asset load) that must happen once and be safe for concurrent callers.
-- **How:**
-  - Embed `sync.Once` in the owning struct; call `once.Do(fn)` where `fn` contains the initialization.
-  - In Go 1.21+, prefer `sync.OnceFunc(fn)` (returns a no-arg func you call repeatedly) or `sync.OnceValue(fn)` (returns a func that returns the value) — they are cleaner and cache the result automatically.
-  - `Do` panics if `fn` panics; the panic propagates to all callers and the initialization is not retried.
-- **Pitfalls:**
-  - Calling `once.Do` with a different function on subsequent calls has no effect — only the first call's function runs.
-  - Holding a lock while calling `once.Do` a second time in the same goroutine deadlocks.
-  - Storing computed results requires an explicit field; use `sync.OnceValue` to avoid the boilerplate.
-- **Verify:** Concurrent goroutines all receive the same initialized value; `go test -race ./...` passes.
+- Embed `sync.Once` in the owning struct; call `once.Do(fn)` where `fn` contains the initialization.
+- In Go 1.21+, prefer `sync.OnceFunc(fn)` (returns a no-arg func you call repeatedly) or `sync.OnceValue(fn)` (returns a func that returns the value) — they are cleaner and cache the result automatically.
+- `Do` panics if `fn` panics; the panic propagates to all callers and the initialization is not retried.
+
+- Calling `once.Do` with a different function on subsequent calls has no effect — only the first call's function runs.
+- Holding a lock while calling `once.Do` a second time in the same goroutine deadlocks.
+- Storing computed results requires an explicit field; use `sync.OnceValue` to avoid the boilerplate.
+
+Concurrent goroutines all receive the same initialized value; `go test -race ./...` passes.
 
 ```go
 // ✅ Classic sync.Once
@@ -427,12 +420,10 @@ var getConfig = sync.OnceValue(func() *Config {
 
 Leaked goroutines, timers, and unclosed resources accumulate silently and exhaust memory or file descriptors.
 
-- **When:** Any use of `time.Ticker`, `time.After`, HTTP clients, or goroutines with blocking sends.
-- **How:**
-  - `time.Ticker`: `ticker := time.NewTicker(d); defer ticker.Stop()` immediately in the same function.
-  - `time.After` in loops: replace with `time.NewTimer` + `defer timer.Stop()` or reset the timer; `time.After` allocates a new `Timer` every iteration.
-  - HTTP response bodies: `defer resp.Body.Close()` after checking the error from `http.Do`.
-  - `select` loops must always include a `ctx.Done()` or done-channel arm — a goroutine blocked on a send to a channel no one reads is a leak.
+- `time.Ticker`: `ticker := time.NewTicker(d); defer ticker.Stop()` immediately in the same function.
+- `time.After` in loops: replace with `time.NewTimer` + `defer timer.Stop()` or reset the timer; `time.After` allocates a new `Timer` every iteration.
+- HTTP response bodies: `defer resp.Body.Close()` after checking the error from `http.Do`.
+- `select` loops must always include a `ctx.Done()` or done-channel arm — a goroutine blocked on a send to a channel no one reads is a leak.
 
 ```go
 // ❌ Wrong: new timer per iteration, old timers leak until they fire
@@ -457,8 +448,9 @@ for {
 }
 ```
 
-- **Pitfalls:** Forgetting `defer resp.Body.Close()` when an error is returned before the defer; goroutines parked on a send to a full unbuffered channel when the receiver has exited.
-- **Verify:** Assert goroutine count is bounded in tests (capture `runtime.NumGoroutine()` before/after); use `go.uber.org/goleak` in tests to detect leaked goroutines automatically; take `runtime/pprof` goroutine snapshots under load (see `standards-observability`).
+Forgetting `defer resp.Body.Close()` when an error is returned before the defer; goroutines parked on a send to a full unbuffered channel when the receiver has exited.
+
+Assert goroutine count is bounded in tests (capture `runtime.NumGoroutine()` before/after); use `go.uber.org/goleak` in tests to detect leaked goroutines automatically; take `runtime/pprof` goroutine snapshots under load (see `standards-observability`).
 
 ```go
 // ✅ goleak: add to TestMain or individual tests
@@ -479,17 +471,16 @@ func TestWorker(t *testing.T) {
 
 Bounded concurrent processing — N goroutines are kept alive and reused rather than spawning one goroutine per task.
 
-- **When:** Bounded concurrent processing — you need N workers reusing goroutines rather than spawning one goroutine per task.
-- **How:**
-  - Create a buffered task channel; start N goroutines that range over it.
-  - Use `sync.WaitGroup` to join workers; add N before starting, each worker calls `wg.Done()` when its loop exits.
-  - Expose a `Shutdown()` method (or close the task channel) only after all submitters are done.
-  - Keep pool size configurable; default to `runtime.NumCPU()`.
-- **Pitfalls:**
-  - Closing the task channel before all submitters have finished (panic: send on closed channel).
-  - Using an unbounded task queue (buffered channel too large) — hides backpressure and inflates memory.
-  - Not draining inflight tasks on shutdown when partial results are acceptable.
-- **Verify:** Pool goroutine count stays fixed under load (compare `runtime.NumGoroutine()` before/after); `go test -race ./...` passes; task completion order tested with a count.
+- Create a buffered task channel; start N goroutines that range over it.
+- Use `sync.WaitGroup` to join workers; add N before starting, each worker calls `wg.Done()` when its loop exits.
+- Expose a `Shutdown()` method (or close the task channel) only after all submitters are done.
+- Keep pool size configurable; default to `runtime.NumCPU()`.
+
+- Closing the task channel before all submitters have finished (panic: send on closed channel).
+- Using an unbounded task queue (buffered channel too large) — hides backpressure and inflates memory.
+- Not draining inflight tasks on shutdown when partial results are acceptable.
+
+Pool goroutine count stays fixed under load (compare `runtime.NumGoroutine()` before/after); `go test -race ./...` passes; task completion order tested with a count.
 
 ```go
 type WorkerPool struct {
@@ -532,16 +523,15 @@ func (wp *WorkerPool) Shutdown() {
 
 Limit concurrent access to a resource without a full worker pool.
 
-- **When:** Limiting concurrent access to a resource (e.g., max N simultaneous DB connections or outbound HTTP calls) without a full worker pool.
-- **How:**
-  - `sem := make(chan struct{}, n)` — capacity sets the limit.
-  - Acquire: `sem <- struct{}{}` (blocks when full).
-  - Release: `<-sem` in a deferred function.
-  - Combine with ctx cancellation using `select` for acquire to avoid hangs.
-- **Pitfalls:**
-  - Acquiring without releasing on error paths (always use `defer <-sem` after a successful acquire).
-  - Not handling ctx cancellation during acquire — goroutine parks indefinitely if the semaphore is always full.
-- **Verify:** `go test -race ./...`; assert concurrent goroutine gauge stays ≤ n during a parallel test.
+- `sem := make(chan struct{}, n)` — capacity sets the limit.
+- Acquire: `sem <- struct{}{}` (blocks when full).
+- Release: `<-sem` in a deferred function.
+- Combine with ctx cancellation using `select` for acquire to avoid hangs.
+
+- Acquiring without releasing on error paths (always use `defer <-sem` after a successful acquire).
+- Not handling ctx cancellation during acquire — goroutine parks indefinitely if the semaphore is always full.
+
+`go test -race ./...`; assert concurrent goroutine gauge stays ≤ n during a parallel test.
 
 ```go
 func acquire(ctx context.Context, sem chan struct{}) error {
@@ -569,16 +559,15 @@ func doWithSemaphore(ctx context.Context, sem chan struct{}) error {
 
 Throttle external API calls, control ingress/egress rates, or protect a shared resource from overload.
 
-- **When:** Throttling external API calls, controlling ingress/egress rates, or protecting a shared resource from overload.
-- **How:**
-  - Use `golang.org/x/time/rate.NewLimiter(rate.Limit(rps), burst)`.
-  - Call `limiter.Wait(ctx)` before each request — it blocks until a token is available or ctx is cancelled.
-  - Scope limiters per-client or per-key (use a `sync.Map` or a keyed map under a mutex) rather than a single global limiter.
-- **Pitfalls:**
-  - Ignoring the error from `limiter.Wait(ctx)` — it returns `ctx.Err()` on cancellation.
-  - One global limiter shared across all clients/tenants — unfair under mixed load.
-  - Not accounting for bursts: a burst of 1 serializes all requests even at low average rates.
-- **Verify:** `go test -race ./...`; a load test measuring requests per second confirms the limiter clamps throughput at the configured rate.
+- Use `golang.org/x/time/rate.NewLimiter(rate.Limit(rps), burst)`.
+- Call `limiter.Wait(ctx)` before each request — it blocks until a token is available or ctx is cancelled.
+- Scope limiters per-client or per-key (use a `sync.Map` or a keyed map under a mutex) rather than a single global limiter.
+
+- Ignoring the error from `limiter.Wait(ctx)` — it returns `ctx.Err()` on cancellation.
+- One global limiter shared across all clients/tenants — unfair under mixed load.
+- Not accounting for bursts: a burst of 1 serializes all requests even at low average rates.
+
+`go test -race ./...`; a load test measuring requests per second confirms the limiter clamps throughput at the configured rate.
 
 Import path: `golang.org/x/time/rate`. Construct a limiter with `rate.NewLimiter(rate.Limit(rps), burst)` and call `if err := limiter.Wait(ctx); err != nil { return err }` before every guarded operation.
 
@@ -588,17 +577,16 @@ Import path: `golang.org/x/time/rate`. Construct a limiter with `rate.NewLimiter
 
 Stream processing with multiple distinct transformation stages — each stage receives from an upstream channel and writes to a downstream channel.
 
-- **When:** Stream processing with multiple distinct transformation stages — each stage receives from an upstream channel and writes to a downstream channel.
-- **How:**
-  - Each stage is a function that accepts `ctx context.Context` and `<-chan T` and returns `<-chan U`.
-  - The stage starts a goroutine, `defer close(out)` inside it, and selects on both `in` and `ctx.Done()`.
-  - Connect stages by passing the output channel of one as the input of the next.
-  - Propagate cancellation by threading ctx through every stage.
-- **Pitfalls:**
-  - One slow stage backs up the entire pipeline if channels are unbuffered and no ctx cancellation drains the pipe.
-  - Forgetting to close stage output channels — downstream stages block forever waiting for more data.
-  - Not propagating ctx — a cancelled pipeline leaves goroutines parked on sends.
-- **Verify:** After ctx cancel, all stage goroutines exit (assert `runtime.NumGoroutine()` returns to baseline); pipeline drains completely with a finite input; `go test -race ./...`.
+- Each stage is a function that accepts `ctx context.Context` and `<-chan T` and returns `<-chan U`.
+- The stage starts a goroutine, `defer close(out)` inside it, and selects on both `in` and `ctx.Done()`.
+- Connect stages by passing the output channel of one as the input of the next.
+- Propagate cancellation by threading ctx through every stage.
+
+- One slow stage backs up the entire pipeline if channels are unbuffered and no ctx cancellation drains the pipe.
+- Forgetting to close stage output channels — downstream stages block forever waiting for more data.
+- Not propagating ctx — a cancelled pipeline leaves goroutines parked on sends.
+
+After ctx cancel, all stage goroutines exit (assert `runtime.NumGoroutine()` returns to baseline); pipeline drains completely with a finite input; `go test -race ./...`.
 
 ```go
 // generator produces integers [0, n) onto a channel.
@@ -660,15 +648,11 @@ func (c *Cache) Lookup(key string) (string, bool) { ... }
 
 ## Skill Loading Triggers
 
-| Situation | Load skills |
+| Situation | Also load |
 |---|---|
-| Writing goroutines or channels | `standards-go-concurrency` |
-| Fan-out parallelism (errgroup) | `standards-go-concurrency` |
-| Mutex / RWMutex usage | `standards-go-concurrency` |
-| Reviewing concurrency code | `standards-go-concurrency`, `role-code-review` |
-| Tracing goroutine latency | `standards-go-concurrency`, `standards-observability` |
-| Writing concurrency tests | `standards-go-concurrency`, `standards-go-testing` |
-| One-time lazy initialization | `standards-go-concurrency` |
+| Reviewing concurrency code | `role-code-review` |
+| Tracing goroutine latency | `standards-observability` |
+| Writing concurrency tests | `standards-go-testing` |
 
 ## Verification Checklist
 

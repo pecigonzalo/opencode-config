@@ -59,7 +59,7 @@ go test -cover ./...                       # coverage report
 go test -bench . -benchmem ./...           # benchmarks with alloc stats
 go test -fuzz=FuzzX -fuzztime=30s ./pkg    # fuzz for 30 seconds
 go test -run TestX -count=100 ./pkg        # stress test for flakiness
-go test -tags=integration ./...            # run integration tests
+go test ./integration/...                  # run integration tests from dedicated folder
 go test -cpuprofile cpu.out -memprofile mem.out -bench . ./pkg  # profile during benchmarks
 ```
 
@@ -152,13 +152,12 @@ if err.Error() != "invalid input" {
 
 Table-driven tests are the canonical Go style for any function with more than one meaningful scenario.
 
-- **When:** Multiple inputs/outputs or scenarios for the same function.
-- **How:** Declare `[]struct{ name, input, want }` slice; iterate with `t.Run(tc.name, func(t *testing.T) { ... })`. Name every case descriptively. Avoid shared mutable fixtures across cases. `t.Parallel()` can be called inside `t.Run` to run subtests concurrently when: (a) all test cases are read-only (no shared mutable fixtures), (b) Go 1.22+ is used (loop variable is per-iteration so no capture needed), or (c) on older toolchains the `tc := tc` capture is added before `t.Parallel()`.
-- **Pitfalls:**
-  - Loop-variable capture in closures (pre-Go 1.22) — add `tc := tc` inside the loop body when `t.Parallel()` is used on older toolchains.
-  - Calling `t.Parallel()` with shared mutable state causes data races.
-  - Unnamed or numbered cases make failures impossible to diagnose at a glance.
-- **Verify:** `go test ./...`; target a single case with `go test -run TestX/case_name`; run `-count=100` to surface flakiness.
+- Multiple inputs/outputs or scenarios for the same function.
+- Declare `[]struct{ name, input, want }` slice; iterate with `t.Run(tc.name, func(t *testing.T) { ... })`. Name every case descriptively. Avoid shared mutable fixtures across cases. `t.Parallel()` can be called inside `t.Run` to run subtests concurrently when: (a) all test cases are read-only (no shared mutable fixtures), (b) Go 1.22+ is used (loop variable is per-iteration so no capture needed), or (c) on older toolchains the `tc := tc` capture is added before `t.Parallel()`.
+- Loop-variable capture in closures (pre-Go 1.22) — add `tc := tc` inside the loop body when `t.Parallel()` is used on older toolchains.
+- Calling `t.Parallel()` with shared mutable state causes data races.
+- Unnamed or numbered cases make failures impossible to diagnose at a glance.
+- `go test ./...`; target a single case with `go test -run TestX/case_name`; run `-count=100` to surface flakiness.
 
 ```go
 // ✅ Idiomatic table-driven test
@@ -253,12 +252,11 @@ func TestReturnsError_WhenXFails(t *testing.T) { ... }
 
 Shared assertion and setup logic belongs in helper functions, not duplicated across tests.
 
-- **When:** Two or more tests need the same setup, teardown, or assertion logic.
-- **How:** Call `t.Helper()` as the **first statement**. Accept `*testing.T` as the first parameter. Use `t.Cleanup(fn)` for teardown so it runs regardless of test outcome; do not rely on bare `defer` in helpers (it may not run on `t.Fatal`).
-- **Pitfalls:**
-  - Omitting `t.Helper()` causes failure output to point at the helper body instead of the caller — forces a confusing stack hunt.
-  - Global test state not reset via `t.Cleanup` leaks across tests when run with `-count` or in parallel.
-- **Verify:** After a deliberate failure, the error message cites the **caller** line, not a line inside the helper.
+- Two or more tests need the same setup, teardown, or assertion logic.
+- Call `t.Helper()` as the **first statement**. Accept `*testing.T` as the first parameter. Use `t.Cleanup(fn)` for teardown so it runs regardless of test outcome; do not rely on bare `defer` in helpers (it may not run on `t.Fatal`).
+- Omitting `t.Helper()` causes failure output to point at the helper body instead of the caller — forces a confusing stack hunt.
+- Global test state not reset via `t.Cleanup` leaks across tests when run with `-count` or in parallel.
+- After a deliberate failure, the error message cites the **caller** line, not a line inside the helper.
 
 ```go
 // ✅ Correct helper
@@ -290,13 +288,12 @@ func badHelper(t *testing.T, err error) {
 
 Tests that depend on wall-clock time or randomness are inherently flaky.
 
-- **When:** Production code calls `time.Now()`, uses random numbers, or sleeps.
-- **How:** Inject a `clock func() time.Time` parameter or a `Clock` interface. Seed deterministic `rand` using a fixed value in tests. Replace `time.Sleep` with channel signals or context deadlines that tests can trigger immediately.
-- **Pitfalls:**
-  - Real `time.Sleep` makes tests slow and racy on loaded CI machines.
-  - Tests that assert specific wall-clock times break across time zones or DST.
-  - Race conditions arise when timers fire before assertions complete.
-- **Verify:** Run `go test -run TestX -count=100 ./pkg` stably on CI; grep for `time.Sleep` in `_test.go` files and justify each occurrence.
+- Production code calls `time.Now()`, uses random numbers, or sleeps.
+- Inject a `clock func() time.Time` parameter or a `Clock` interface. Seed deterministic `rand` using a fixed value in tests. Replace `time.Sleep` with channel signals or context deadlines that tests can trigger immediately.
+- Real `time.Sleep` makes tests slow and racy on loaded CI machines.
+- Tests that assert specific wall-clock times break across time zones or DST.
+- Race conditions arise when timers fire before assertions complete.
+- Run `go test -run TestX -count=100 ./pkg` stably on CI; grep for `time.Sleep` in `_test.go` files and justify each occurrence.
 
 ```go
 // ✅ Inject clock for determinism
@@ -319,13 +316,12 @@ func (s *Service) IsExpired(t time.Time) bool {
 
 Golden files decouple test assertions from large or complex expected output.
 
-- **When:** Testing functions that produce large structured output: JSON, HTML, SQL, rendered templates, or binary formats.
-- **How:** Store expected output under `testdata/` (Go tooling ignores this directory during builds). Accept a `-update` flag to regenerate golden files when behavior intentionally changes. Diff actual vs. golden with clear output. Use deterministic serialization (sorted map keys, stable marshalling).
-- **Pitfalls:**
-  - Non-deterministic map iteration produces different output each run, causing spurious failures.
-  - Platform-dependent line endings (`\r\n` vs `\n`) break cross-platform runs.
-  - Forgetting to commit updated golden files after an intentional change breaks CI.
-- **Verify:** `go test ./...` passes on Linux, macOS, and Windows; golden files are tracked in version control.
+- Testing functions that produce large structured output: JSON, HTML, SQL, rendered templates, or binary formats.
+- Store expected output under `testdata/` (Go tooling ignores this directory during builds). Accept a `-update` flag to regenerate golden files when behavior intentionally changes. Diff actual vs. golden with clear output. Use deterministic serialization (sorted map keys, stable marshalling).
+- Non-deterministic map iteration produces different output each run, causing spurious failures.
+- Platform-dependent line endings (`\r\n` vs `\n`) break cross-platform runs.
+- Forgetting to commit updated golden files after an intentional change breaks CI.
+- `go test ./...` passes on Linux, macOS, and Windows; golden files are tracked in version control.
 
 ```go
 var update = flag.Bool("update", false, "regenerate golden files")
@@ -349,13 +345,12 @@ func TestRender(t *testing.T) {
 
 Prefer handwritten fakes that implement the interface over auto-generated or framework mocks.
 
-- **When:** Testing code that calls an interface — databases, HTTP clients, clocks, queues.
-- **How:** Write a small struct that implements the interface; record calls if needed; assert on *behavior* (did the right thing happen?), not on *internal sequence* (was method X called before Y?). Define interfaces at the **point of use**, as narrow as needed.
-- **Pitfalls:**
-  - Over-mocking makes tests brittle: they break on refactoring even when behavior is unchanged.
-  - Framework-generated mocks that don't reflect real behavior give false confidence.
-  - Test-specific interfaces that are too wide force fakes to implement unused methods.
-- **Verify:** Tests survive refactoring of the internal implementation without changes to the test itself. Fakes compile when the interface changes (compiler enforces sync).
+- Testing code that calls an interface — databases, HTTP clients, clocks, queues.
+- Write a small struct that implements the interface; record calls if needed; assert on *behavior* (did the right thing happen?), not on *internal sequence* (was method X called before Y?). Define interfaces at the **point of use**, as narrow as needed.
+- Over-mocking makes tests brittle: they break on refactoring even when behavior is unchanged.
+- Framework-generated mocks that don't reflect real behavior give false confidence.
+- Test-specific interfaces that are too wide force fakes to implement unused methods.
+- Tests survive refactoring of the internal implementation without changes to the test itself. Fakes compile when the interface changes (compiler enforces sync).
 
 ```go
 // ✅ Handwritten fake
@@ -424,17 +419,15 @@ func init() { dataset = mustLoadDataset() }
 
 Testable examples serve as live documentation that `go test` verifies on every run.
 
-- **When:** Public API functions where live documentation showing expected output would help users. Examples appear in `go doc` and `pkg.go.dev`.
-- **How:**
-  - Name functions `func ExampleFoo()` or `func ExampleFoo_suffix()` for multiple examples.
-  - Add an `// Output:` comment at the end with the exact expected stdout. If output order is non-deterministic, use `// Unordered output:`.
-  - Keep examples self-contained; import only what's needed.
-  - Without an `// Output:` comment the function compiles but does not run as a test.
-- **Pitfalls:**
-  - Non-deterministic output (map iteration, timestamps, random data) causes test failures — stabilize or avoid.
-  - Omitting `// Output:` means the example is never executed — tests pass vacuously.
-  - Examples that import heavy dependencies inflate package test binaries.
-- **Verify:** `go test ./...` runs and passes the example; `go doc PackageName.Foo` shows the example in the rendered docs.
+- Public API functions where live documentation showing expected output would help users. Examples appear in `go doc` and `pkg.go.dev`.
+- Name functions `func ExampleFoo()` or `func ExampleFoo_suffix()` for multiple examples.
+- Add an `// Output:` comment at the end with the exact expected stdout. If output order is non-deterministic, use `// Unordered output:`.
+- Keep examples self-contained; import only what's needed.
+- Without an `// Output:` comment the function compiles but does not run as a test.
+- Non-deterministic output (map iteration, timestamps, random data) causes test failures — stabilize or avoid.
+- Omitting `// Output:` means the example is never executed — tests pass vacuously.
+- Examples that import heavy dependencies inflate package test binaries.
+- `go test ./...` runs and passes the example; `go doc PackageName.Foo` shows the example in the rendered docs.
 
 ```go
 // ✅ Testable example with Output comment
@@ -458,34 +451,62 @@ func ExampleGreet_formal() {
 
 Integration tests exercise real external dependencies and are kept separate so they do not slow down every `go test ./...` run.
 
-- **When:** Tests that require real external dependencies (databases, network services, file system), are slow, or are designed to run only in dedicated environments.
-- **How:**
-  - Add a build constraint `//go:build integration` as the **first line** of integration test files (blank line between constraint and `package` declaration).
-  - Optionally add a `testing.Short()` guard inside the test: `if testing.Short() { t.Skip("skipping integration test") }` for tests that can be included in normal runs but skipped with `-short`.
-  - Run integration tests explicitly: `go test -tags=integration ./...`
-  - Run short-mode to exclude slow tests: `go test -short ./...`
-- **Pitfalls:**
-  - Integration tests in files without a build tag run as part of every `go test ./...`, slowing CI and failing without dependencies.
-  - Forgetting cleanup (DB teardown, temp file removal) — use `t.Cleanup` or `defer`.
-  - Hardcoding connection strings — use environment variables or test config.
-- **Verify:** `go test ./...` (no tags) does not run integration tests; `go test -tags=integration ./...` runs them and they pass with real deps.
+- Tests that require real external dependencies (databases, network services, file system), are slow, or are designed to run only in dedicated environments.
+- Prefer a dedicated `integration/` subdirectory (with its own package like `package integration_test`) and run it explicitly: `go test ./integration/...`. This keeps the scope obvious to both humans and tooling.
+- When keeping integration tests alongside unit tests, use a `_integration_test.go` suffix so the file stands out in listings. Run them via targeted commands such as `go test -run TestIntegration ./...` or `go test ./pkg -run TestIntegration`.
+- Name your test functions with an `Integration` prefix/suffix (e.g., `TestIntegration_CreateOrder`) and group variants with `t.Run` to make filtering reliable.
+- Guard slow tests with `testing.Short()` so the default `go test ./...`/CI run skips them (`if testing.Short() { t.Skip("skipping integration test") }`). Run the full suite with `go test -run TestIntegration ./...` or `go test -short ./...` to skip slow tests explicitly.
+- Keep cleanup localized (`t.Cleanup`, `t.TempDir`, or `defer`) and avoid hardcoding connection strings — inject via environment variables or dedicated test configs.
+- Build-tagged tests (`//go:build integration`) are a last resort when a test must be hidden from `go test ./...` entirely (destructive operations, credentials that must never run accidentally). They are harder to discover and require extra CLI flags, so document why the tag is necessary when you do use it.
 
 ```go
-//go:build integration
-
-package mypackage_test
+package integration_test
 
 import (
-    "testing"
     "os"
+    "testing"
 )
 
-func TestDatabaseRoundTrip(t *testing.T) {
+func TestIntegration_DatabaseRoundTrip(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping integration test")
+    }
+
     dsn := os.Getenv("TEST_DSN")
     if dsn == "" {
-        t.Skip("TEST_DSN not set; skipping integration test")
+        t.Skip("TEST_DSN not set; skip real database")
     }
+
     // ... test body using real DB
+    t.Cleanup(func() { /* teardown */ })
+}
+```
+
+---
+
+## E2E Tests
+
+E2E tests target the full running system — a compiled binary, live cluster, or external service — and are always kept in a dedicated location separate from unit and integration tests.
+
+- Use a top-level `e2e/` or `test/e2e/` directory with its own package (`package e2e_test`). Run explicitly: `go test ./e2e/...`.
+- Gate execution with an environment variable rather than `testing.Short()` (which signals "slow", not "system-under-test"): `if os.Getenv("RUN_E2E") == "" { t.Skip("set RUN_E2E to run") }`.
+- Build tags (`//go:build e2e`) are acceptable here — e2e tests often require special infrastructure or credentials that must never run accidentally. Pair with the env guard for double safety.
+- Use `t.Cleanup` for teardown; propagate `context` with a deadline to bound runaway tests.
+
+```go
+// e2e/api_test.go — package e2e_test
+package e2e_test
+
+import (
+    "os"
+    "testing"
+)
+
+func TestE2E_CreateOrder(t *testing.T) {
+    if os.Getenv("RUN_E2E") == "" {
+        t.Skip("set RUN_E2E=1 to run e2e tests")
+    }
+    // ... drive the running system
     t.Cleanup(func() { /* teardown */ })
 }
 ```
@@ -496,14 +517,13 @@ func TestDatabaseRoundTrip(t *testing.T) {
 
 Benchmarks are first-class tests in Go; use them to guard performance-sensitive paths.
 
-- **When:** Performance-critical code paths, allocation budgets, or before/after comparison of an optimization.
-- **How:** Write `func BenchmarkX(b *testing.B)`. Call `b.ResetTimer()` after any setup. Use `b.ReportAllocs()` (or pass `-benchmem`) to surface heap allocations. Assign results to a package-level sink to prevent the compiler from eliminating the call. In Go 1.24+, prefer `b.Loop()` over `for i := 0; i < b.N; i++`. Use `b.RunParallel(func(pb *testing.PB) { for pb.Next() { ... } })` to benchmark concurrent throughput or measure lock contention. Call `b.SetParallelism(n)` to control goroutine count if needed.
+- Performance-critical code paths, allocation budgets, or before/after comparison of an optimization.
+- Write `func BenchmarkX(b *testing.B)`. Call `b.ResetTimer()` after any setup. Use `b.ReportAllocs()` (or pass `-benchmem`) to surface heap allocations. Assign results to a package-level sink to prevent the compiler from eliminating the call. In Go 1.24+, prefer `b.Loop()` over `for i := 0; i < b.N; i++`. Use `b.RunParallel(func(pb *testing.PB) { for pb.Next() { ... } })` to benchmark concurrent throughput or measure lock contention. Call `b.SetParallelism(n)` to control goroutine count if needed.
   - Use `b.Run("name", func(b *testing.B) { ... })` to group related benchmark variants (e.g., different input sizes or encoding formats) under one parent — results appear in a hierarchy and can be filtered individually with `-bench=BenchmarkX/name`.
-- **Pitfalls:**
-  - Including setup/teardown inside the timed loop inflates `ns/op`.
-  - High-variance I/O (disk, network) makes `ns/op` unstable.
-  - Not sinking the result lets the compiler optimize away the call, reporting unrealistically low numbers.
-- **Verify:** Stable `ns/op` and `allocs/op` across runs; compare before/after with `benchstat`.
+- Including setup/teardown inside the timed loop inflates `ns/op`.
+- High-variance I/O (disk, network) makes `ns/op` unstable.
+- Not sinking the result lets the compiler optimize away the call, reporting unrealistically low numbers.
+- Stable `ns/op` and `allocs/op` across runs; compare before/after with `benchstat`.
 
 ```go
 var sink any // package-level sink prevents dead-code elimination
@@ -567,13 +587,12 @@ func BenchmarkEncode(b *testing.B) {
 
 Fuzz testing finds unexpected inputs that panic or violate invariants — critical for parsers and decoders.
 
-- **When:** Parsing, decoding, or validating untrusted input: JSON, binary protocols, URLs, user-supplied strings.
-- **How:** Write `func FuzzX(f *testing.F)`. Seed the corpus with `f.Add(...)` covering known edge cases. Assert invariants inside the fuzz body (no panic, output is valid, round-trip is stable). Store interesting corpus entries the fuzzer finds in `testdata/fuzz/FuzzX/`.
-- **Pitfalls:**
-  - No seed corpus means early fuzzing is purely random and slow to find interesting paths.
-  - Slow fuzz targets (>1 ms/exec) block CI; keep the target tight and pure.
-  - External I/O (network, disk) inside a fuzz target makes it non-reproducible.
-- **Verify:** `go test -fuzz=FuzzX -fuzztime=30s ./pkg` exits cleanly; corpus entries committed; seed-corpus run (`go test ./...`) produces no panics.
+- Parsing, decoding, or validating untrusted input: JSON, binary protocols, URLs, user-supplied strings.
+- Write `func FuzzX(f *testing.F)`. Seed the corpus with `f.Add(...)` covering known edge cases. Assert invariants inside the fuzz body (no panic, output is valid, round-trip is stable). Store interesting corpus entries the fuzzer finds in `testdata/fuzz/FuzzX/`.
+- No seed corpus means early fuzzing is purely random and slow to find interesting paths.
+- Slow fuzz targets (>1 ms/exec) block CI; keep the target tight and pure.
+- External I/O (network, disk) inside a fuzz target makes it non-reproducible.
+- `go test -fuzz=FuzzX -fuzztime=30s ./pkg` exits cleanly; corpus entries committed; seed-corpus run (`go test ./...`) produces no panics.
 
 ```go
 func FuzzParseConfig(f *testing.F) {
@@ -603,15 +622,12 @@ func FuzzParseConfig(f *testing.F) {
 
 ## Skill Loading Triggers
 
-| Situation | Load skills |
+| Situation | Also load |
 |---|---|
-| Writing any Go tests | `standards-go-testing`, `standards-testing` |
-| Table-driven tests or subtests | `standards-go-testing` |
-| Writing benchmarks | `standards-go-testing`, `standards-go-performance` |
-| Fuzzing parsers or decoders | `standards-go-testing` |
-| Testing concurrent code | `standards-go-testing`, `standards-go-concurrency` |
-| Reviewing Go tests | `standards-go-testing`, `role-code-review` |
-| Integration tests | `standards-go-testing` |
+| Writing any Go tests | `standards-testing` |
+| Writing benchmarks | `standards-go-performance` |
+| Testing concurrent code | `standards-go-concurrency` |
+| Reviewing Go tests | `role-code-review` |
 
 ## Verification Checklist
 
@@ -627,7 +643,8 @@ func FuzzParseConfig(f *testing.F) {
 - [ ] No `time.Sleep` in test assertions; clock injected for determinism
 - [ ] Benchmarks exclude setup from timed loop (`b.ResetTimer`); `b.Loop()` used on Go 1.24+
 - [ ] Fuzz targets have seeded corpus; no external I/O inside fuzz body
-- [ ] Integration test files carry `//go:build integration`; `go test ./...` (no tags) does not run them
+- [ ] Integration tests reside in dedicated folders (e.g., `integration/`) or `_integration_test.go` files with `Integration`-prefixed names, are targeted via commands such as `go test ./integration/...` or `go test -run TestIntegration ./...`, and skip by default using `testing.Short()` when appropriate
+- [ ] E2E tests live in a top-level `e2e/` or `test/e2e/` directory, are gated by an environment variable (`RUN_E2E`), and never run as part of `go test ./...`
 - [ ] Example functions have `// Output:` comment so they run as tests
 
 Base directory for this skill: file:///Users/pecigonzalo/.config/opencode/skills/standards-go-testing
