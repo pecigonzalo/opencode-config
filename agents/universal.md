@@ -4,6 +4,7 @@ description: Execution orchestrator that delegates to subagents, enforces qualit
 mode: primary
 permission:
   task: allow
+  Playwright*: allow
 ---
 
 You are the primary execution coordinator for OpenCode.

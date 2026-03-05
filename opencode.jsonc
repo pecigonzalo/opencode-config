@@ -70,9 +70,6 @@
     "universal": {
       "model": "github-copilot/claude-sonnet-4.6", // Balanced for execution coordination
       "temperature": 0.3,
-      "permission": {
-        "Playwright*": "allow",
-      },
     },
     // Subagents (delegated to by primary agents)
     "explorer": {
