@@ -5,9 +5,33 @@
     "hostname": "127.0.0.1",
     "mdns": false,
   },
-  "instructions": ["DEV_SPEC.md", "ONE_PAGER.md"],
+  "instructions": [
+    "DEV_SPEC.md",
+    "ONE_PAGER.md"
+  ],
   // Planner agent as default entry point (read-only planning, hands off to universal)
   "default_agent": "planner",
+  "provider": {
+    "github-copilot": {
+      "models": {
+        "gpt-5.3-codex": {
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ],
+          },
+          "limit": {
+            "context": 272000,
+            "output": 128000,
+          },
+        },
+      },
+    },
+  },
   // Agent model assignments
   "agent": {
     // Disable built-in agents (we have custom planner)
@@ -33,6 +57,9 @@
       "description": "Execution orchestrator that delegates to subagents, enforces quality gates, and drives tasks to completion. Can execute plans from planner or handle direct requests",
       "temperature": 0.3,
       "prompt": "{file:./agents/universal.md}",
+      "tools": {
+        "Playwright*": true,
+      },
       "permission": {
         "task": "allow",
         "read": "deny",
@@ -43,6 +70,9 @@
     "universal": {
       "model": "github-copilot/claude-sonnet-4.6", // Balanced for execution coordination
       "temperature": 0.3,
+      "permission": {
+        "Playwright*": "allow",
+      },
     },
     // Subagents (delegated to by primary agents)
     "explorer": {
@@ -53,66 +83,66 @@
       "model": "github-copilot/gpt-5.1-codex-mini", // Compact code reasoning at low cost
       "prompt": "{file:./agents/prompts/implementer.md}",
       "description": "Small-scope engineering agent for docs, tests, and bounded edits. Use for quick, low-risk changes with minimal coordination.",
-      "mode": "subagent",
       "temperature": 0.2,
       "permission": {
         "task": "deny",
         "todoread": "deny",
         "todowrite": "deny",
+        "Playwright*": "allow",
       },
     },
     "balanced": {
       "model": "github-copilot/claude-sonnet-4.6",
       "prompt": "{file:./agents/prompts/implementer.md}",
       "description": "Implementation agent for standard multi-file features, refactors, and non-trivial bugfixes.",
-      "mode": "subagent",
       "temperature": 0.3,
       "permission": {
         "task": "deny",
         "todoread": "deny",
         "todowrite": "deny",
+        "Playwright*": "allow",
       },
     },
     "deep": {
       "model": "github-copilot/claude-opus-4.6",
       "prompt": "{file:./agents/prompts/implementer.md}",
       "description": "Implementation agent for complex, multi-file work and debugging. Use when scope is uncertain, cross-cutting, or requires careful design and verification.",
-      "mode": "subagent",
       "temperature": 0.3,
       "permission": {
         "task": "deny",
         "todoread": "deny",
         "todowrite": "deny",
+        "Playwright*": "allow",
       },
     },
     "deep-l": {
-      "disable": true, // Disabled upstream
-      "model": "github-copilot/gpt-5.2-codex", // 272k context, agentic tool use, deep reasoning
+      "disable": false,
+      "model": "github-copilot/gpt-5.3-codex", // 272k context, agentic tool use, deep reasoning
       "prompt": "{file:./agents/prompts/implementer.md}",
       "description": "Implementation agent with large context (272k) for broad-scope work spanning many files or requiring extended analysis.",
-      "mode": "subagent",
       "temperature": 0.3,
       "permission": {
         "todoread": "deny",
         "todowrite": "deny",
         "task": "deny",
+        "Playwright*": "allow",
       },
     },
     "deep-xl": {
-      "disable": true, // Out of tokens
+      "disable": false,
       "model": "openai/gpt-5.3-codex", // Premium code-specialized model via OpenAI (400k context)
       "prompt": "{file:./agents/prompts/implementer.md}",
       "description": "Implementation agent with extra-large context (400k) for the broadest-scope work. Disabled by default — requires direct OpenAI API access.",
-      "mode": "subagent",
       "temperature": 0.3,
       "permission": {
         "todoread": "deny",
         "todowrite": "deny",
         "task": "deny",
+        "Playwright*": "allow",
       },
     },
     "thinker": {
-      "model": "github-copilot/gpt-5.2-codex", // 272k context, agentic tool use, deep reasoning
+      "model": "github-copilot/gpt-5.3-codex", // 272k context, agentic tool use, deep reasoning
       "temperature": 0.5,
       "reasoningEffort": "high", // Leverage extended reasoning capabilities
     },
@@ -181,13 +211,18 @@
       "/tmp": "allow",
     },
     "doom_loop": "ask",
+    "Playwright*": "deny",
   },
   // MCP servers
   "mcp": {
     "btca": {
       "enabled": false,
       "type": "local",
-      "command": ["bunx", "btca", "mcp"],
+      "command": [
+        "bunx",
+        "btca",
+        "mcp"
+      ],
     },
     "GitHub Grep": {
       "type": "remote",

@@ -32,6 +32,7 @@ Produce execution-ready plans with clear steps, risks, and handoff context for `
 - Never edit files or run modifying commands
 - Use only read and search tools
 - Delegate only to `explorer` and `thinker`
+- When delegating to `explorer`, never include bash/shell execution instructions — explorer has bash denied; use grep/glob/list/read tools only
 - Do not perform implementation or execution tasks
 
 ## Planning Workflow
