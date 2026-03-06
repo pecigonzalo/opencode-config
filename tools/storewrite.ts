@@ -3,31 +3,7 @@ declare const Bun: any;
 import { tool } from "@opencode-ai/plugin";
 import fs from "fs/promises";
 import path from "path";
-
-// Use Bun APIs when available for performance, but fall back to fs/promises
-const writeFile =
-  typeof Bun !== "undefined" && Bun?.write
-    ? (p: string, data: string) => Bun.write(Bun.file(p), data)
-    : (p: string, data: string) => fs.writeFile(p, data, "utf-8");
-
-type StoreItem = {
-  id: string;
-  summary: string;
-  tags: string[];
-  status?: "active" | "archived" | "deprecated";
-  links?: string[];
-  data?: any;
-  updatedAt?: string;
-  createdAt?: string;
-};
-
-function uuid() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+import { type StoreItem, writeFile } from "./store-types.js";
 
 export default tool({
   description:
@@ -66,7 +42,7 @@ export default tool({
       ),
   },
   async execute(args, context) {
-    const id = args.id ?? uuid();
+    const id = args.id ?? crypto.randomUUID();
     const dir = path.join(process.cwd(), ".opencode", "sessions");
     const file = path.join(dir, "store.json");
 

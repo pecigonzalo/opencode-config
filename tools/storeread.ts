@@ -3,17 +3,7 @@ declare const Bun: any;
 import { tool } from "@opencode-ai/plugin";
 import fs from "fs/promises";
 import path from "path";
-
-type StoreItem = {
-  id: string;
-  summary: string;
-  tags: string[];
-  status?: "active" | "archived" | "deprecated";
-  links?: string[];
-  data?: any;
-  updatedAt?: string;
-  createdAt?: string;
-};
+import { type StoreItem } from "./store-types.js";
 
 export default tool({
   description:
@@ -43,7 +33,8 @@ export default tool({
     try {
       const raw = await fs.readFile(file, "utf-8");
       try {
-        const items = JSON.parse(raw) as StoreItem[];
+        const parsed = JSON.parse(raw);
+        const items: StoreItem[] = Array.isArray(parsed) ? parsed : [];
 
         // READ MODE: Return full item with data
         if (args.id) {
@@ -56,7 +47,7 @@ export default tool({
         }
 
         // LIST MODE: Return summaries only (lightweight)
-        const list = (items ?? [])
+        const list = items
           .filter((it) =>
             args.tags && args.tags.length > 0
               ? args.tags.every((t) => it.tags?.includes(t))

@@ -3,23 +3,7 @@ declare const Bun: any;
 import { tool } from "@opencode-ai/plugin";
 import fs from "fs/promises";
 import path from "path";
-
-// Use Bun APIs when available for performance, but fall back to fs/promises
-const writeFile =
-  typeof Bun !== "undefined" && Bun?.write
-    ? (p: string, data: string) => Bun.write(Bun.file(p), data)
-    : (p: string, data: string) => fs.writeFile(p, data, "utf-8");
-
-type StoreItem = {
-  id: string;
-  summary: string;
-  tags: string[];
-  status?: "active" | "archived" | "deprecated";
-  links?: string[];
-  data?: any;
-  updatedAt?: string;
-  createdAt?: string;
-};
+import { type StoreItem, writeFile } from "./store-types.js";
 
 export default tool({
   description:

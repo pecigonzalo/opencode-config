@@ -71,7 +71,6 @@ const SUBCOMMAND_DENIED_FLAGS: Record<string, Set<string>> = {
     "--force",
     "--message",
   ]),
-  // config is fully denied at subcommand level
   "cat-file": new Set(["--batch-all-objects"]),
 };
 
@@ -124,15 +123,7 @@ export function validateGitArgs(args: string[]): ValidationResult {
     };
   }
 
-  // 2. config is fully denied
-  if (subcommand === "config") {
-    return {
-      ok: false,
-      error: 'Subcommand "config" is fully denied to prevent secret leakage.',
-    };
-  }
-
-  // 3. Check global denied flags across all args (case-insensitive).
+  // 2. Check global denied flags across all args (case-insensitive).
   // Also match "=" suffix forms like --git-dir=/path and --work-tree=/path.
   for (const arg of args) {
     const lower = arg.toLowerCase();
