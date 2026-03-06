@@ -7,7 +7,7 @@ permission:
     "*": deny
     explorer: allow
     thinker: allow
-  read: deny
+  read: allow
   edit: deny
   bash: deny
 ---
@@ -21,7 +21,7 @@ Use `role-orchestrator` as the source of truth for delegation and quality checks
 ## Skill Loading Policy
 
 - Keep `role-orchestrator` loaded for planning delegation patterns
-- Load `tool-store` when retrieving prior plan context or storing plans for handoff
+- Load `tool-store` when retrieving prior plan context or storing plans for handoff — required when plan meets 3+ TODOs / >60 min / multi-phase criteria
 
 ## Mission
 
@@ -59,7 +59,25 @@ For non-trivial work, include:
 - Risks and assumptions
 - Verification strategy
 
-When a stored plan is created, provide the store ID and a copy-ready handoff prompt for `@universal`.
+### Stored Plans Must Include Prompt Drafts
+
+When you store a plan for later execution (via `storewrite`), and the plan meets **any** of these conditions:
+- Will produce **3+ TODO items**
+- Estimated effort **> 60 minutes**
+- Involves **multiple phases or agents**
+
+…then the plan **MUST** include `data.prompt_drafts` with:
+- `universal_handoff_prompt`: a plain copy-paste message (e.g. `@orchestrator Load store: <id>\n\nTask: ...`) for the user to resume execution — **not** a `Task({ ... })` wrapper, since `orchestrator`/`universal` are primary agents invoked directly by the user, not subagent `Task()` targets
+- `todo_tasks[]`: one entry per step with `todo_title`, `todo_content` (includes `[store:<plan-id>]`), and `task_block` (full delegation `Task({ ... })` targeting fast/balanced/deep/etc.)
+
+This ensures execution can resume correctly after compaction — no context reconstruction needed.
+
+**See `tool-store` skill → "Plan Prompt Drafts" section** for the canonical schema and a complete example.
+
+After storing, provide the user with:
+- The store ID
+- A copy-ready `@orchestrator` invocation (from `prompt_drafts.universal_handoff_prompt` — it is a plain message the user pastes directly)
+- The `prompt_drafts.todo_tasks` entries embedded in the stored item (not only in the chat)
 
 ## Clarification Policy
 

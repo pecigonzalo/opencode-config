@@ -30,24 +30,30 @@ Deliver user outcomes end-to-end by routing work to the right subagent, validati
 When the user references `Load store:` or `[store:<id>]`:
 
 1. Load referenced store items immediately with `storeread`
-2. Convert plan steps into TODOs
-3. Delegate each step with required skills, requirements, and success criteria
-4. Validate every step before moving on
-5. Close with a concise completion report
+2. If the store item contains `data.prompt_drafts`:
+   - Use `prompt_drafts.todo_tasks[].todo_content` to create TODO items with `todowrite`
+   - Use `prompt_drafts.todo_tasks[].task_block` as the default delegation prompt for each step
+   - Use `prompt_drafts.universal_handoff_prompt` as reference for the overall intent (it is a plain message, not a `Task()` call)
+3. If `data.prompt_drafts` is absent (older plans): fall back to generating TODOs and delegation prompts from the plan structure
+4. Delegate each step with required skills, requirements, and success criteria
+5. Validate every step before moving on
+6. Close with a concise completion report
 
 ### 2) Direct Execution
 
 For direct user requests:
 
 1. Triage scope, ambiguity, and risk
-2. Select the best subagent and skills
-3. Delegate with clear, verifiable criteria
-4. Review outputs and re-delegate if quality gates fail
+2. **If 2+ complexity indicators** (4+ files, >60 min, cross-cutting, security-critical, unclear approach): **load `pattern-orchestration-complex`** and follow its 4-phase workflow
+3. **For multi-step planning**: delegate to Thinker with `pattern-task-breakdown` loaded
+4. Select the best subagent and skills
+5. Delegate with clear, verifiable criteria
+6. Review outputs and re-delegate if quality gates fail
 
 ## Routing Guidelines
 
 - **Explorer**: read-only discovery
-- **Thinker**: planning and deep analysis
+- **Thinker**: planning and deep analysis — always include `pattern-task-breakdown` when asking for execution plans
 - **Fast**: bounded, low-risk implementation (simple edits, docs, tests)
 - **Balanced**: standard implementation work
 - **Deep**: complex or cross-cutting implementation

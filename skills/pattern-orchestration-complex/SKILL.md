@@ -194,33 +194,33 @@ Output as markdown following pattern-task-breakdown skill format.
 
 **Session is now ready for execution**
 
-### Step 5: Consider Store-Memory for Persistence (Recommended)
+### Step 5: Persist Plan to Store (Required for Complex Tasks)
 
-**For complex features, consider using store-memory to persist plans and decisions:**
-
-**Load tool-store skill for comprehensive guidance:**
+**Load tool-store skill:**
 ```
 skill(name: "tool-store")
 ```
 
-**When to persist to store-memory:**
+**When to persist:**
 - [ ] Feature will take >4 hours
 - [ ] Architectural decisions made during planning
 - [ ] Multiple phases or agents involved
-- [ ] Want to preserve rationale beyond session lifecycle
-- [ ] Need to reference detailed specs from TODO items
+- [ ] Want plan to survive session cleanup or compaction
+
+**What to store — include `prompt_drafts` for compaction-safe execution:**
+
+Since this is a complex task (3+ TODOs, >60 min), the stored plan **MUST** include `data.prompt_drafts` with:
+- `universal_handoff_prompt`: a plain copy-paste message (e.g. `@orchestrator Load store: <id>\n\nTask: Execute the plan.`) for the user to resume execution — **not** a `Task({ ... })` wrapper, since `orchestrator`/`universal` are primary agents, not `Task()` targets
+- `todo_tasks[]`: one entry per planned step, each with `todo_content` (for `todowrite`) and `task_block` (the full delegation `Task({ ... })` targeting fast/balanced/deep/etc.)
+
+This ensures that if context is compacted between planning and execution, the agent can load the store item and immediately start delegating using the stored prompts — no context reconstruction needed.
+
+**See `tool-store` skill → "Plan Prompt Drafts" section** for the canonical schema and a complete working example.
 
 **Benefits:**
-- Plan and decisions survive session cleanup
+- Plan and decisions survive session cleanup and compaction
+- Prompt drafts are always available — no reconstruction from memory
 - Can be referenced via `[store:id]` syntax in TODO items
-- Future reference for similar work
-- Architectural decisions preserved with full context
-
-**The tool-store skill provides:**
-- Complete examples for storing execution plans
-- ADR (Architecture Decision Record) patterns
-- Tagging strategies (`"todo-context"`, `"adr"`, etc.)
-- TODO-Store linking pattern usage
 
 ---
 
@@ -233,13 +233,14 @@ skill(name: "tool-store")
 #### 1. Delegate Task
 
 **Select appropriate subagent:**
-- Light: Simple edits, documentation, tests
-- Heavy: Complex logic, security-critical, multi-file changes
+- Fast: Simple edits, documentation, tests
+- Balanced: Standard multi-file work
+- Deep: Complex logic, security-critical, cross-cutting changes
 
 **Delegate with context:**
 ```
 Task({
-  subagent_type: "{light|heavy}",
+  subagent_type: "{fast|balanced|deep}",
   description: "{5-10 word summary}",
   prompt: `
 Load skills: {relevant domain skills/standards/patterns}
@@ -335,7 +336,7 @@ Starting Phase 2: Authentication endpoints
 
 ```
 Task({
-  subagent_type: "light",
+  subagent_type: "fast",
   description: "Final verification of completed work",
   prompt: `
 Load skills: role-code-review, role-qa-engineer
@@ -347,9 +348,9 @@ Review ALL files modified in this feature.
 Verification Checklist:
 - [ ] All requirements from original request met
 - [ ] All acceptance criteria satisfied
-- [ ] Code follows standards (context/standards/code.md)
-- [ ] Security best practices applied (context/standards/security.md)
-- [ ] Tests comprehensive and passing (context/standards/tests.md)
+- [ ] Code follows standards (`skill:standards-code`)
+- [ ] Security best practices applied (`skill:standards-security`)
+- [ ] Tests comprehensive and passing (`skill:standards-testing`)
 - [ ] Documentation updated where needed
 - [ ] No obvious bugs or issues
 

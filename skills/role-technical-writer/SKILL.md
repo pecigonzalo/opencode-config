@@ -22,7 +22,7 @@ metadata:
 
 **Keep Current**: Outdated docs are worse than no docs
 
-**Reference**: context/standards/docs.md
+**Reference**: `skill:standards-documentation`
 
 ---
 

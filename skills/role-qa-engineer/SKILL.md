@@ -20,7 +20,7 @@ metadata:
 
 **Test Pyramid**: Many unit tests, some integration tests, few E2E tests
 
-**Reference**: context/standards/tests.md
+**Reference**: `skill:standards-testing`
 
 ---
 

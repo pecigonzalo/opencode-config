@@ -18,7 +18,7 @@ metadata:
 
 **Severity Levels**: Critical (🔴 must fix), High (🟠 should fix), Medium (🟡 consider), Low (🔵 nice to have)
 
-**Reference**: context/standards/security.md for comprehensive guidelines
+**Reference**: `skill:standards-security` for comprehensive guidelines
 
 ---
 
@@ -588,7 +588,7 @@ stmt.setString(1, email);
 
 ## References
 
-**Comprehensive security guidelines:** context/standards/security.md
+**Comprehensive security guidelines:** `skill:standards-security`
 
 **OWASP Resources:**
 - OWASP Top 10: https://owasp.org/www-project-top-ten/

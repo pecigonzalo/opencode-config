@@ -5,10 +5,10 @@ This document defines standards for AI agents working within the **OpenCode conf
 ## 1. Repository Structure
 
 This repository contains:
-- **`agents/`**: Agent definitions (universal, heavy, light, thinker, explorer)
-- **`skills/`**: Domain-specific skill modules loaded on-demand by agents
+- **`agents/`**: Agent definitions (universal, planner, fast, balanced, deep, deep-l, thinker, explorer)
+- **Skill modules**: Domain-specific skill capabilities loaded on-demand by agents
 - **`tools/`**: Custom TypeScript tools extending OpenCode's capabilities
-- **`gitro`**: fallback read-only git tool — only use when `bash` is not available (e.g. in read-only agents like `explorer`); prefer `bash git ...` in implementation agents
+- **`tools/gitro`**: fallback read-only git tool — only use when `bash` is not available (e.g. in read-only agents like `explorer`); prefer `bash git ...` in implementation agents
 - **`plugins/`**: OpenCode plugins for system-level integrations
 - **`opencode.jsonc`**: Primary configuration file (agent models, permissions, settings)
 - **`.opencode/sessions/`**: Runtime data (store.json for persistent memory)
@@ -102,7 +102,7 @@ type Result<T> = {
 ### Multi-Agent Orchestration
 This system operates as a multi-agent environment where specialized agents collaborate on tasks.
 - **Agent Definitions**: Found in `agents/`. These define the "personality" and high-level instructions for specific roles.
-- **Skills**: Shared capabilities are loaded from `skills/`. Each skill contains domain-specific instructions and reference scripts.
+- **Skills**: Shared capabilities are loaded from skill modules. Each skill contains domain-specific instructions and reference scripts.
 
 ### Persistence & Memory
 - **Store System**: Persistent memory is managed via `.opencode/sessions/store.json`.
@@ -115,9 +115,9 @@ This system operates as a multi-agent environment where specialized agents colla
 
 For deeper dives into specific standards, refer to the following skill definitions:
 
-- **Code Quality** (`skills/standards-code/SKILL.md`): Detailed patterns for writing clean, maintainable TypeScript.
-- **Testing Practices** (`skills/standards-testing/SKILL.md`): Comprehensive guide on unit, integration, and E2E testing.
-- **Security Guidelines** (`skills/standards-security/SKILL.md`): OWASP Top 10 mitigations and secure coding checklists.
+- **Code Quality** (`skill:standards-code`): Detailed patterns for writing clean, maintainable TypeScript.
+- **Testing Practices** (`skill:standards-testing`): Comprehensive guide on unit, integration, and E2E testing.
+- **Security Guidelines** (`skill:standards-security`): OWASP Top 10 mitigations and secure coding checklists.
 - **Orchestration Patterns** (`agents/universal.md`): Documentation on how agents should coordinate on complex tasks.
 
 ---

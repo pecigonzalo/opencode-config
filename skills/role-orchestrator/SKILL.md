@@ -15,8 +15,10 @@ metadata:
 **Subagent Selection:**
 - **Explorer**: Read-only discovery, finding files/patterns
 - **Thinker**: Deep analysis, planning, research (no writes)
-- **Light**: Simple edits, docs, tests (1-2 files, <30 lines)
-- **Heavy**: Complex implementation, refactoring (3+ files, algorithms)
+- **Fast**: Simple edits, docs, tests (bounded, low-risk)
+- **Balanced**: Standard implementation, refactors, non-trivial bugfixes
+- **Deep**: Complex, multi-file work; uncertain scope or cross-cutting changes
+- **Deep-L**: Deep work requiring large context (272k)
 
 **Delegation Format:** Always include skills, requirements, and success criteria
 
@@ -63,30 +65,52 @@ Return:
 - Tasks estimated > 60 minutes
 - Approach isn't immediately clear
 
-### Use Light When:
-- Simple edit (1-2 files, < 30 lines changed)
-- Documentation changes
-- Adding comments
+### Use Fast When:
+- Simple edit, documentation changes, or adding comments
 - Writing tests for existing code
-- Simple code reviews
-- Routine, well-defined tasks
+- Routine, well-defined tasks with minimal coordination needed
 
-### Use Heavy When:
-- Complex logic (algorithms, intricate business rules)
-- Multi-file changes (3+ files)
-- Security-critical code
-- Performance-critical code
-- Refactoring with architectural changes
+### Use Balanced When:
+- Standard multi-file features and refactors
+- Non-trivial bugfixes
+- Implementation work with clear scope
+
+### Use Deep When:
+- Complex, multi-file work where scope is uncertain or cross-cutting
 - Debugging complex issues
+- Security-critical or performance-critical code
+- Refactoring with architectural changes
+
+### Use Deep-L When:
+- Deep implementation requiring large context (272k) — e.g. broad-scope analysis spanning many files
+
+### Pattern Selection Triggers
+
+**Before routing, check these triggers:**
+
+| Condition | Action |
+|-----------|--------|
+| 2+ complexity/risk/size indicators present | **Load `pattern-orchestration-complex`** and follow its 4-phase workflow |
+| Task requires multi-step breakdown or >60 min plan | **Delegate to Thinker with `pattern-task-breakdown`** |
+| Storing a plan that will produce 3+ TODOs or >60 min effort | **Store `prompt_drafts`** in plan data — see `tool-store` skill |
+
+**Complexity indicators** (size, complexity, or risk):
+- 4+ files affected
+- >60 minutes estimated
+- Multiple sequential phases needed
+- Cross-cutting or security-critical changes
+- Approach isn't immediately clear
+- Architectural decisions required
 
 ### Complexity Assessment
 
 | Complexity | Indicators | Agent |
 |------------|------------|-------|
 | **Trivial** | Conversational only | Handle directly |
-| **Simple** | 1-5 min, 1-2 files, <30 lines | Light |
-| **Medium** | 5-30 min, 2-3 files | Light or Heavy |
-| **Complex** | 4+ files, >60 min, unclear approach | Thinker first, then Heavy |
+| **Simple** | Bounded, low-risk, clear scope | Fast |
+| **Medium** | Multi-file, clear approach | Balanced |
+| **Complex** | Uncertain scope, cross-cutting, >60 min | Load `pattern-orchestration-complex`; Thinker with `pattern-task-breakdown` first |
+| **Very Large** | Broad scope spanning many files | Deep-L |
 
 ---
 
@@ -96,7 +120,7 @@ Return:
 
 ```
 Task({
-  subagent_type: "<explorer|light|heavy|thinker>",
+  subagent_type: "<explorer|fast|balanced|deep|deep-l|thinker>",
   description: "<5-10 word summary>",
   prompt: `
 Load skills: <skill1>, <skill2>
@@ -141,7 +165,7 @@ For tasks requiring context continuity:
 
 ```
 Task({
-  subagent_type: "heavy",
+  subagent_type: "deep",
   session_id: extractedSessionId,  // Reuse for continuity
   prompt: `Continue implementation...`
 })
@@ -163,7 +187,7 @@ When re-delegating after compaction, use this format to restore context:
 
 ```javascript
 Task({
-  subagent_type: "heavy",
+  subagent_type: "deep",
   session_id: "original-session-id", // CRITICAL: Reuse session_id
   prompt: `
 [CONTEXT RECOVERY]
@@ -251,11 +275,25 @@ storewrite({
   data: {
     requirements: [...],
     acceptance_criteria: [...],
-    technical_notes: [...]
+    technical_notes: [...],
+    // If plan is multi-step (3+ TODOs, >60 min, or multi-phase), add:
+    prompt_drafts: {
+      universal_handoff_prompt: `@orchestrator Load store: <plan-id>\n\nTask: Execute the stored plan.`,  // plain copy-paste message for user; NOT a Task() call
+      todo_tasks: [
+        {
+          todo_title: "Step title",
+          todo_content: "Step title [store:<plan-id>]",
+          task_block: `Task({ ... })`  // full delegation Task block for this step — targets fast/balanced/deep/etc.
+        }
+      ]
+    }
   }
 })
 // Returns: { id: "store-abc-123" }
+// Replace <plan-id> placeholder with returned id before presenting to user
 ```
+
+See `tool-store` skill → "Plan Prompt Drafts" section for the canonical schema and a full working example.
 
 **Step 2: Create TODO with reference**
 ```javascript
@@ -404,19 +442,20 @@ How would you like to proceed?
 ## Integration with Other Skills
 
 ### With pattern-orchestration-complex
-- Load for tasks affecting 4+ files or >60 min
+- **Load when:** 2+ complexity/risk/size indicators are present (4+ files, >60 min, cross-cutting, security-critical)
 - Provides 4-phase workflow (planning, execution, verification, cleanup)
-- Use when complexity indicators present
+- Overrides simple direct-delegation approach — follow its workflow instead
 
 ### With pattern-task-breakdown
-- Delegate to thinker with this skill for planning
-- Creates structured task decomposition
-- Output feeds into TODO list
+- **Load when:** delegating to Thinker for any multi-step execution plan
+- Include in Thinker delegation prompt: `Load skills: pattern-task-breakdown`
+- Thinker's plan output feeds directly into TODOs and the `prompt_drafts` store entry
+- For simple 1-2 step tasks, skip and delegate directly
 
 ### With tool-store
 - Detailed guidance on store operations
 - ADR patterns for architectural decisions
-- Comprehensive TODO-Store linking examples
+- **Plan Prompt Drafts** section: canonical schema for embedding copy-pastable `Task({ ... })` blocks in stored plans
 
 ---
 

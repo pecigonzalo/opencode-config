@@ -140,6 +140,191 @@ storewrite({
 
 ---
 
+## Store Entry Audiences
+
+Store entries serve two distinct audiences. Understanding the difference prevents context bloat and incorrect field usage.
+
+### Plan entries (orchestrator / control plane)
+
+Used by the orchestrator or universal agent to drive TODO creation and delegation.
+
+- **Tags:** `["plan", "todo-context", ...]`
+- **Include:** `data.prompt_drafts` (see section below)
+- **Loaded by:** orchestrator/universal to kick off or resume execution
+
+### Spec/context entries (implementer / data plane)
+
+Used by subagents during implementation to understand requirements, constraints, and acceptance criteria.
+
+- **Tags:** `["spec"]`, `["decision"]`, `["schema"]`, etc. — no `"plan"` tag
+- **Do NOT include** `data.prompt_drafts` — that field is for plan entries only
+- **Loaded by:** fast/balanced/deep agents via `Load store:` in their delegation prompt
+
+### Cross-referencing plans and specs
+
+Plans should link to their related spec/context entries using `links[]`. Per-task `task_block` prompts should explicitly load both the plan ID and any linked spec IDs so implementers have full context.
+
+```javascript
+storewrite({
+  summary: "Plan: Implement payment gateway",
+  tags: ["plan", "todo-context", "payments"],
+  status: "active",
+  links: ["payment-spec-abc", "api-schema-xyz"],  // ← Link to spec entries
+  data: {
+    // ...plan fields...
+    prompt_drafts: {
+      // Each task_block loads plan + linked specs:
+      // Load store: <plan-id>, payment-spec-abc, api-schema-xyz
+    }
+  }
+})
+```
+
+---
+
+## Plan Prompt Drafts (Compaction-Safe Execution)
+
+**Problem:** When a plan is stored and later loaded after compaction, the agent has the plan structure but lacks the context needed to draft good delegation prompts — skills, requirements, and success criteria were all in the original conversation.
+
+**Solution:** Embed copy-pastable `Task({ ... })` blocks directly in the stored plan. After compaction, load the plan and use the drafts verbatim.
+
+### When Required
+
+Prompt drafts **MUST** be included in a stored plan when **any** of:
+- [ ] Plan will produce **3+ TODO items**
+- [ ] Estimated effort **> 60 minutes**
+- [ ] Plan involves **multiple phases or agents**
+
+Otherwise optional but recommended.
+
+### Canonical `data.prompt_drafts` Shape
+
+```json
+{
+  "prompt_drafts": {
+    "universal_handoff_prompt": "@orchestrator Load store: <plan-store-id>\n\nTask: Execute the stored plan.",
+    "todo_tasks": [
+      {
+        "todo_title": "Short display title for this step",
+        "todo_content": "Short display title for this step [store:<plan-store-id>]",
+        "task_block": "Task({ ... })"
+      }
+    ]
+  }
+}
+```
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `prompt_drafts.universal_handoff_prompt` | Yes | Plain copy-paste message (e.g. `@orchestrator Load store: <id>\n\nTask: ...`) for the user to resume execution — **not** a `Task({ ... })` wrapper, since `orchestrator`/`universal` are primary agents, not subagent targets |
+| `prompt_drafts.todo_tasks[].todo_title` | Yes | Short label for the TODO item |
+| `prompt_drafts.todo_tasks[].todo_content` | Yes | TODO text including `[store:<plan-id>]` reference |
+| `prompt_drafts.todo_tasks[].task_block` | Yes | Full `Task({ ... })` for delegating this specific step to a subagent (fast/balanced/deep/etc.) |
+
+**Keep prompt drafts concise:** reference file paths and store IDs rather than pasting code. Each `task_block` should be executable after a `storeread`.
+
+**After storing:** replace every `<plan-store-id>` placeholder with the actual returned ID before presenting the handoff to the user.
+
+### Full Example
+
+```javascript
+const result = storewrite({
+  summary: "Plan: Add OAuth2 login flow with GitHub provider",
+  tags: ["plan", "feature", "auth", "todo-context"],
+  status: "active",
+  data: {
+    goal: "Implement GitHub OAuth2 login so users can sign in without a password",
+    approach: [
+      "Add OAuth2 provider config and env vars",
+      "Implement callback handler and session creation",
+      "Write integration tests"
+    ],
+    affected_files: ["config/auth.ts", "routes/auth.ts"],
+    risks: ["OAuth state param CSRF", "Session fixation on login"],
+    verification: "E2E: user can complete GitHub login; unit tests for callback handler",
+    estimated_effort: "2-3 hours",
+    prompt_drafts: {
+      universal_handoff_prompt: `@orchestrator Load store: <plan-store-id>
+
+Task: Execute the stored OAuth2 GitHub login plan.
+Load the plan, convert each step to a TODO using prompt_drafts.todo_tasks
+entries (todo_content field), then delegate each using the corresponding task_block.`,
+      todo_tasks: [
+        {
+          todo_title: "Add OAuth2 config and env vars",
+          todo_content: "Add OAuth2 config and env vars [store:<plan-store-id>]",
+          task_block: `Task({
+  subagent_type: "fast",
+  description: "Add OAuth2 config and env vars",
+  prompt: \`
+Load skills: role-developer, standards-security
+Load store: <plan-store-id>
+
+Task: Add OAuth2 GitHub provider config and required environment variables.
+
+Requirements:
+- Add GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET to env schema in config/auth.ts
+- Do not commit secrets
+
+Success Criteria:
+- config/auth.ts exists and exports provider config
+- Env schema validates required vars
+  \`
+})`
+        },
+        {
+          todo_title: "Implement callback handler",
+          todo_content: "Implement callback handler [store:<plan-store-id>]",
+          task_block: `Task({
+  subagent_type: "balanced",
+  description: "Implement OAuth2 callback and session creation",
+  prompt: \`
+Load skills: role-developer, standards-security
+Load store: <plan-store-id>
+
+Task: Implement the OAuth2 callback route and session creation in routes/auth.ts.
+
+Requirements:
+- Validate state param to prevent CSRF
+- Create session after successful OAuth exchange
+
+Success Criteria:
+- Callback handles valid and invalid state params
+- Session created and user redirected on success
+  \`
+})`
+        },
+        {
+          todo_title: "Write integration tests",
+          todo_content: "Write integration tests [store:<plan-store-id>]",
+          task_block: `Task({
+  subagent_type: "balanced",
+  description: "Write OAuth2 integration tests",
+  prompt: \`
+Load skills: role-qa-engineer, standards-testing
+Load store: <plan-store-id>
+
+Task: Write integration tests for the GitHub OAuth2 callback handler.
+
+Requirements:
+- Happy path: valid code + state → session created
+- CSRF: invalid state → rejected
+
+Success Criteria:
+- All tests pass; callback error paths covered
+  \`
+})`
+        }
+      ]
+    }
+  }
+})
+// Returns: { success: true, id: "<plan-store-id>" }
+// After storing: replace <plan-store-id> in all prompt_drafts with the returned id
+```
+
+---
+
 ## TODO-Store Linking Pattern
 
 **Problem:** TODO items have limited space. Complex tasks need detailed specs.

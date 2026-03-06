@@ -18,7 +18,7 @@ metadata:
 
 **Design Considerations**: Scalability, Maintainability, Performance, Security, Testability
 
-**Reference**: context/standards/code.md, context/standards/patterns.md
+**Reference**: `standards-code`, `standards-security`, `standards-testing` skills
 
 ---
 
