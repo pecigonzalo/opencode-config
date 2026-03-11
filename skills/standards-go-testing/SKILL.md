@@ -13,12 +13,7 @@ metadata:
 
 **Provides:** Idiomatic Go testing patterns — table-driven tests, subtests, test helpers, deterministic time, golden files, fakes, benchmarks, and fuzz targets.
 
-**Primary references:**
-
-- [Effective Go](https://go.dev/doc/effective_go)
-- [Go CodeReviewComments](https://github.com/golang/go/wiki/CodeReviewComments)
-- [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md)
-- [Google Go Style Guide](https://google.github.io/styleguide/go/guide) / [Decisions](https://google.github.io/styleguide/go/decisions) / [Best Practices](https://google.github.io/styleguide/go/best-practices)
+**Primary references:** Effective Go, Go CodeReviewComments, and major Go style guides.
 
 > This skill adds Go-specific patterns; load `standards-testing` for general testing discipline (AAA pattern, coverage goals, what/what-not to test).
 
@@ -67,41 +62,9 @@ go test -cpuprofile cpu.out -memprofile mem.out -bench . ./pkg  # profile during
 
 ## Useful Failure Messages
 
-Test failures must be diagnosable without reading the source. Every `t.Errorf`/`t.Fatalf` call should include: function name + inputs, actual result, expected result — in that order.
-
-**Canonical format:** `YourFunc(%v) = %v, want %v`
-
-- **Got before want** — always print actual before expected (matches `cmp.Diff` convention).
-- **Include inputs** — `t.Errorf("Add(2, 3) = %d, want %d", got, 5)` is far more useful than `t.Errorf("got %d, want %d", got, 5)`.
-- **t.Error vs t.Fatal** — use `t.Error` to keep the test running so all failures are reported; use `t.Fatal` only when continuing is meaningless (e.g., setup failed, decoding invalid output is pointless).
-- **Never call `t.Fatal`/`t.FailNow` from a goroutine** — only the test goroutine may call them; use `t.Error` from spawned goroutines.
-
-```go
-// ✅ Canonical format — function name + inputs + got + want
-if got := Add(2, 3); got != 5 {
-    t.Errorf("Add(2, 3) = %d, want %d", got, 5)
-}
-
-// ✅ Use t.Error to report multiple failures in one run
-if diff := cmp.Diff(wantMean, gotMean); diff != "" {
-    t.Errorf("Mean() mismatch (-want +got):\n%s", diff)
-}
-if diff := cmp.Diff(wantVariance, gotVariance); diff != "" {
-    t.Errorf("Variance() mismatch (-want +got):\n%s", diff)
-}
-
-// ✅ t.Fatal when continuation is pointless
-gotEncoded := Encode(input)
-if gotEncoded != wantEncoded {
-    t.Fatalf("Encode(%q) = %q, want %q", input, gotEncoded, wantEncoded)
-}
-// Decoding unexpected output is meaningless, so Fatal above is justified
-
-// ❌ Bad: no function name or inputs — impossible to diagnose
-if got := Add(2, 3); got != 5 {
-    t.Errorf("got %d, want %d", got, 5)
-}
-```
+Use canonical, diagnosable failures: `Func(input) = got, want`.
+Prefer `t.Error` for multiple checks and `t.Fatal` only when continuation is meaningless.
+Never call `t.Fatal`/`t.FailNow` from goroutines.
 
 ---
 
@@ -113,38 +76,7 @@ if got := Add(2, 3); got != 5 {
 
 **Use `errors.Is`/`errors.As` for error semantics** — never compare error strings; they are not part of the API contract and break silently on wording changes.
 
-```go
-// ✅ Struct/slice comparison with cmp.Diff
-want := &Post{Type: "blog", Comments: 2}
-if diff := cmp.Diff(want, got); diff != "" {
-    t.Errorf("GetPost() mismatch (-want +got):\n%s", diff)
-}
-
-// ✅ Protocol buffers
-if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
-    t.Errorf("Foo() mismatch (-want +got):\n%s", diff)
-}
-
-// ✅ Error semantics
-if !errors.Is(err, ErrInvalidInput) {
-    t.Errorf("f(%v) error = %v, want ErrInvalidInput", input, err)
-}
-
-// ✅ errors.As to inspect the concrete error type
-var target *ValidationError
-if !errors.As(err, &target) {
-    t.Errorf("f(%v) error = %v, want *ValidationError", input, err)
-}
-
-// ❌ Assertion library — don't
-assert.IsNotNil(t, "obj", obj)
-assert.StringEq(t, "obj.Type", obj.Type, "blogPost")
-
-// ❌ String-matching errors — brittle
-if err.Error() != "invalid input" {
-    t.Errorf("unexpected error: %v", err)
-}
-```
+Use plain comparisons for primitives, `cmp.Diff` for complex values, and `errors.Is`/`errors.As` for error semantics.
 
 ---
 
@@ -159,58 +91,9 @@ Table-driven tests are the canonical Go style for any function with more than on
 - Unnamed or numbered cases make failures impossible to diagnose at a glance.
 - `go test ./...`; target a single case with `go test -run TestX/case_name`; run `-count=100` to surface flakiness.
 
-```go
-// ✅ Idiomatic table-driven test
-func TestAdd(t *testing.T) {
-    cases := []struct {
-        name    string
-        a, b    int
-        want    int
-    }{
-        {"positive",      2,  3,  5},
-        {"negative",     -1,  1,  0},
-        {"zero_identity", 0,  0,  0},
-    }
-    for _, tc := range cases {
-        t.Run(tc.name, func(t *testing.T) {
-            if got := Add(tc.a, tc.b); got != tc.want {
-                t.Errorf("Add(%d, %d) = %d; want %d", tc.a, tc.b, got, tc.want)
-            }
-        })
-    }
-}
+Use table tests for multi-scenario logic with descriptive case names and `t.Run`.
 
-// ❌ Anti-pattern: unnamed cases, no subtest
-func TestAdd_Bad(t *testing.T) {
-    if Add(2, 3) != 5 { t.Error("failed") }
-    if Add(-1, 1) != 0 { t.Error("failed") } // which case failed?
-}
-```
-
-```go
-// ✅ Safe parallel subtests (Go 1.22+ — loop variable is per-iteration)
-for _, tc := range cases {
-    t.Run(tc.name, func(t *testing.T) {
-        t.Parallel() // safe: tc is a fresh copy each iteration in Go 1.22+
-        got := Add(tc.a, tc.b)
-        if got != tc.want {
-            t.Errorf("Add(%d, %d) = %d; want %d", tc.a, tc.b, got, tc.want)
-        }
-    })
-}
-
-// ✅ Safe parallel subtests (pre-Go 1.22 — explicit capture)
-for _, tc := range cases {
-    tc := tc // capture loop variable before calling t.Parallel
-    t.Run(tc.name, func(t *testing.T) {
-        t.Parallel()
-        got := Add(tc.a, tc.b)
-        if got != tc.want {
-            t.Errorf("Add(%d, %d) = %d; want %d", tc.a, tc.b, got, tc.want)
-        }
-    })
-}
-```
+For parallel subtests, ensure loop-variable safety for the active Go version and avoid shared mutable fixtures.
 
 ### Avoid Complexity in Table Tests
 
@@ -218,27 +101,7 @@ When test cases require conditional mock setup, multiple branching fields, or ca
 
 A table test works well when: all cases run identical logic, setup is uniform, no conditional assertions, and every field is used in every case. A single `wantErr bool` field is acceptable; a matrix of `shouldCallX`, `giveXResponse`, `giveXErr` flags is not.
 
-```go
-// ❌ Too complex — conditional fields and mock branching
-tests := []struct {
-    give        string
-    shouldCallX bool
-    giveXErr    error
-    wantErr     bool
-}{...}
-for _, tt := range tests {
-    t.Run(tt.give, func(t *testing.T) {
-        if tt.shouldCallX {
-            xMock.EXPECT().Call().Return("resp", tt.giveXErr)
-        }
-        // ...
-    })
-}
-
-// ✅ Split into focused functions instead
-func TestCallsX_OnValidInput(t *testing.T) { ... }
-func TestReturnsError_WhenXFails(t *testing.T) { ... }
-```
+If table setup becomes conditional/branch-heavy, split into focused tests.
 
 ### Subtest Names
 
@@ -258,29 +121,7 @@ Shared assertion and setup logic belongs in helper functions, not duplicated acr
 - Global test state not reset via `t.Cleanup` leaks across tests when run with `-count` or in parallel.
 - After a deliberate failure, the error message cites the **caller** line, not a line inside the helper.
 
-```go
-// ✅ Correct helper
-func requireNoError(t *testing.T, err error) {
-    t.Helper()
-    if err != nil {
-        t.Fatalf("unexpected error: %v", err)
-    }
-}
-
-// ✅ Helper with cleanup
-func tempDir(t *testing.T) string {
-    t.Helper()
-    dir := t.TempDir() // t.TempDir already registers cleanup
-    return dir
-}
-
-// ❌ Missing t.Helper() — failure line points into this function, not the caller
-func badHelper(t *testing.T, err error) {
-    if err != nil {
-        t.Fatalf("error: %v", err) // confusing output
-    }
-}
-```
+Test helpers should call `t.Helper()` first and use `t.Cleanup` for teardown.
 
 ---
 
@@ -295,20 +136,7 @@ Tests that depend on wall-clock time or randomness are inherently flaky.
 - Race conditions arise when timers fire before assertions complete.
 - Run `go test -run TestX -count=100 ./pkg` stably on CI; grep for `time.Sleep` in `_test.go` files and justify each occurrence.
 
-```go
-// ✅ Inject clock for determinism
-type Service struct {
-    clock func() time.Time
-}
-
-func NewService() *Service   { return &Service{clock: time.Now} }
-func newTestService() *Service { return &Service{clock: func() time.Time { return fixedTime }} }
-
-// ❌ Hard-coded wall clock — untestable
-func (s *Service) IsExpired(t time.Time) bool {
-    return time.Now().After(t) // cannot control in tests
-}
-```
+Inject clocks/randomness in production code to avoid flaky time-based tests.
 
 ---
 
@@ -323,21 +151,7 @@ Golden files decouple test assertions from large or complex expected output.
 - Forgetting to commit updated golden files after an intentional change breaks CI.
 - `go test ./...` passes on Linux, macOS, and Windows; golden files are tracked in version control.
 
-```go
-var update = flag.Bool("update", false, "regenerate golden files")
-
-func TestRender(t *testing.T) {
-    got := Render(input)
-    golden := filepath.Join("testdata", "render.golden")
-    if *update {
-        os.WriteFile(golden, got, 0644)
-    }
-    want, _ := os.ReadFile(golden)
-    if !bytes.Equal(got, want) {
-        t.Errorf("output mismatch (-want +got):\n%s", diff(want, got))
-    }
-}
-```
+Store large expected outputs in `testdata/` and support controlled `-update` regeneration.
 
 ---
 
@@ -352,22 +166,7 @@ Prefer handwritten fakes that implement the interface over auto-generated or fra
 - Test-specific interfaces that are too wide force fakes to implement unused methods.
 - Tests survive refactoring of the internal implementation without changes to the test itself. Fakes compile when the interface changes (compiler enforces sync).
 
-```go
-// ✅ Handwritten fake
-type fakeStore struct {
-    users map[string]*User
-    err   error // inject error for unhappy-path tests
-}
-
-func (f *fakeStore) Get(_ context.Context, id string) (*User, error) {
-    if f.err != nil { return nil, f.err }
-    return f.users[id], nil
-}
-
-// ❌ Over-specified mock — breaks on any internal reordering
-mockStore.EXPECT().Get(ctx, "42").Times(1).Return(user, nil)
-mockStore.EXPECT().Save(ctx, user).Times(1).Return(nil)
-```
+Prefer handwritten fakes over interaction-heavy mocks.
 
 ### Test Double Naming & Packages
 
@@ -377,16 +176,7 @@ mockStore.EXPECT().Save(ctx, user).Times(1).Return(nil)
 - **Multiple types:** include the type — `StubService`, `StubStoredValue`.
 - **Local variables:** prefix double variables for clarity (`spyCC` not `cc`).
 
-```go
-// Package creditcardtest
-type AlwaysCharges struct{}
-func (AlwaysCharges) Charge(*creditcard.Card, money.Money) error { return nil }
-
-type AlwaysDeclines struct{}
-func (AlwaysDeclines) Charge(*creditcard.Card, money.Money) error {
-    return creditcard.ErrDeclined
-}
-```
+Name shared test doubles by behavior (`AlwaysCharges`, `AlwaysDeclines`) for readability.
 
 ### Test Package Choice
 
@@ -401,17 +191,7 @@ Both styles live in `foo_test.go` files. Prefer `package foo_test` for external 
 
 Avoid `init()` or package-level `var` that load expensive fixtures for **all** tests. Scope setup to the tests that need it using helper functions; tests that don't need the data pay nothing.
 
-```go
-// ✅ Explicit per-test setup
-func TestParseData(t *testing.T) {
-    data := mustLoadDataset(t) // only this test pays for it
-    // ...
-}
-
-// ❌ Global init — runs even for unrelated tests
-var dataset []byte
-func init() { dataset = mustLoadDataset() }
-```
+Avoid expensive global setup in `init()`; scope fixtures to tests that need them.
 
 ---
 
@@ -429,21 +209,7 @@ Testable examples serve as live documentation that `go test` verifies on every r
 - Examples that import heavy dependencies inflate package test binaries.
 - `go test ./...` runs and passes the example; `go doc PackageName.Foo` shows the example in the rendered docs.
 
-```go
-// ✅ Testable example with Output comment
-func ExampleGreet() {
-    fmt.Println(Greet("world"))
-    // Output:
-    // Hello, world!
-}
-
-// ✅ Multiple examples for the same function
-func ExampleGreet_formal() {
-    fmt.Println(Greet("Dr. Smith"))
-    // Output:
-    // Hello, Dr. Smith!
-}
-```
+Use `Example...` functions with `// Output:` so docs stay executable.
 
 ---
 
@@ -459,28 +225,7 @@ Integration tests exercise real external dependencies and are kept separate so t
 - Keep cleanup localized (`t.Cleanup`, `t.TempDir`, or `defer`) and avoid hardcoding connection strings — inject via environment variables or dedicated test configs.
 - Build-tagged tests (`//go:build integration`) are a last resort when a test must be hidden from `go test ./...` entirely (destructive operations, credentials that must never run accidentally). They are harder to discover and require extra CLI flags, so document why the tag is necessary when you do use it.
 
-```go
-package integration_test
-
-import (
-    "os"
-    "testing"
-)
-
-func TestIntegration_DatabaseRoundTrip(t *testing.T) {
-    if testing.Short() {
-        t.Skip("skipping integration test")
-    }
-
-    dsn := os.Getenv("TEST_DSN")
-    if dsn == "" {
-        t.Skip("TEST_DSN not set; skip real database")
-    }
-
-    // ... test body using real DB
-    t.Cleanup(func() { /* teardown */ })
-}
-```
+Keep integration tests explicit and skippable in default runs.
 
 ---
 
@@ -493,23 +238,7 @@ E2E tests target the full running system — a compiled binary, live cluster, or
 - Build tags (`//go:build e2e`) are acceptable here — e2e tests often require special infrastructure or credentials that must never run accidentally. Pair with the env guard for double safety.
 - Use `t.Cleanup` for teardown; propagate `context` with a deadline to bound runaway tests.
 
-```go
-// e2e/api_test.go — package e2e_test
-package e2e_test
-
-import (
-    "os"
-    "testing"
-)
-
-func TestE2E_CreateOrder(t *testing.T) {
-    if os.Getenv("RUN_E2E") == "" {
-        t.Skip("set RUN_E2E=1 to run e2e tests")
-    }
-    // ... drive the running system
-    t.Cleanup(func() { /* teardown */ })
-}
-```
+Keep E2E tests in dedicated directories and gate them with env vars.
 
 ---
 
@@ -525,61 +254,9 @@ Benchmarks are first-class tests in Go; use them to guard performance-sensitive 
 - Not sinking the result lets the compiler optimize away the call, reporting unrealistically low numbers.
 - Stable `ns/op` and `allocs/op` across runs; compare before/after with `benchstat`.
 
-```go
-var sink any // package-level sink prevents dead-code elimination
+Benchmarks should isolate timed work, report allocations, and use `b.Loop()` when available.
 
-// ✅ Idiomatic benchmark (Go 1.24+)
-func BenchmarkProcess(b *testing.B) {
-    data := makeTestData()  // setup outside timer
-    b.ResetTimer()
-    b.ReportAllocs()
-    for b.Loop() {          // b.Loop() preferred in 1.24+
-        sink = Process(data)
-    }
-}
-
-// ✅ Pre-1.24 style
-func BenchmarkProcessOld(b *testing.B) {
-    data := makeTestData()
-    b.ResetTimer()
-    for i := 0; i < b.N; i++ {
-        sink = Process(data)
-    }
-}
-```
-
-```go
-// ✅ Parallel benchmark — measures concurrent throughput / contention
-func BenchmarkProcessParallel(b *testing.B) {
-    data := makeTestData()
-    b.ResetTimer()
-    b.RunParallel(func(pb *testing.PB) {
-        for pb.Next() {
-            sink = Process(data)
-        }
-    })
-}
-
-// ✅ Sub-benchmarks — compare two encoding formats
-func BenchmarkEncode(b *testing.B) {
-    data := makeTestData()
-
-    b.Run("JSON", func(b *testing.B) {
-        b.ReportAllocs()
-        for b.Loop() {
-            sink, _ = json.Marshal(data)
-        }
-    })
-
-    b.Run("MessagePack", func(b *testing.B) {
-        b.ReportAllocs()
-        for b.Loop() {
-            sink, _ = msgpack.Marshal(data)
-        }
-    })
-}
-// Run a specific sub-benchmark: go test -bench=BenchmarkEncode/JSON -benchmem ./...
-```
+Use `b.RunParallel` and sub-benchmarks where they materially improve signal.
 
 ---
 
@@ -594,29 +271,7 @@ Fuzz testing finds unexpected inputs that panic or violate invariants — critic
 - External I/O (network, disk) inside a fuzz target makes it non-reproducible.
 - `go test -fuzz=FuzzX -fuzztime=30s ./pkg` exits cleanly; corpus entries committed; seed-corpus run (`go test ./...`) produces no panics.
 
-```go
-func FuzzParseConfig(f *testing.F) {
-    // Seed with known edge cases
-    f.Add([]byte(`{}`))
-    f.Add([]byte(`{"key":"value"}`))
-    f.Add([]byte(nil))
-
-    f.Fuzz(func(t *testing.T, data []byte) {
-        cfg, err := ParseConfig(data)
-        if err != nil {
-            return // errors are fine; panics are not
-        }
-        // Invariant: re-serializing produces parseable output
-        out, err := cfg.Marshal()
-        if err != nil {
-            t.Errorf("marshal of valid config failed: %v", err)
-        }
-        if _, err := ParseConfig(out); err != nil {
-            t.Errorf("round-trip failed: %v", err)
-        }
-    })
-}
-```
+Fuzz targets should be pure, seeded, and assert invariants (no panic, stable round-trip semantics).
 
 ---
 

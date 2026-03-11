@@ -13,14 +13,7 @@ metadata:
 
 **Provides:** pprof/trace profiling workflows, allocation control patterns, escape analysis guidance, GC tuning guardrails, and runtime metrics for production observability.
 
-**Primary references:**
-
-- [Effective Go](https://go.dev/doc/effective_go)
-- [Go CodeReviewComments](https://github.com/golang/go/wiki/CodeReviewComments)
-- [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md)
-- [Google Go Style Guide](https://google.github.io/styleguide/go/guide) / [Decisions](https://google.github.io/styleguide/go/decisions) / [Best Practices](https://google.github.io/styleguide/go/best-practices)
-- [Go Diagnostics Guide](https://go.dev/doc/diagnostics)
-- [Go GC Guide](https://go.dev/doc/gc-guide)
+**Primary references:** Go diagnostics and GC guides, plus core Go style references.
 
 ## Quick Reference
 
@@ -181,63 +174,12 @@ func process(data []byte) {
 
 ### Hot-Path Allocation Tricks
 
-These micro-optimizations are worth applying only where benchmarks or heap profiles confirm allocation is a bottleneck — not speculatively.
+Use these only when profiles show allocation pressure:
 
-**Prefer `strconv` over `fmt` for primitive↔string conversions:**
-`fmt.Sprint`/`Sprintf` use reflection and allocate more than their `strconv` equivalents:
-```go
-// ❌ ~143 ns/op, 2 allocs/op
-s := fmt.Sprint(rand.Int())
-
-// ✅ ~64 ns/op, 1 alloc/op
-s := strconv.Itoa(rand.Int())
-```
-Other useful alternatives: `strconv.FormatInt`, `strconv.AppendInt` (appends to an existing `[]byte`, zero allocs).
-
-**Convert constant strings to `[]byte` once, outside the loop:**
-`[]byte("constant")` allocates on every call. Hoist it:
-```go
-// ❌ New allocation each iteration
-for range items {
-    w.Write([]byte("separator"))
-}
-
-// ✅ Single allocation, ~7x faster in benchmarks
-sep := []byte("separator")
-for range items {
-    w.Write(sep)
-}
-```
-
-**Preallocate maps with a size hint when approximate count is known:**
-```go
-// ✅ Fewer bucket resizes during population
-m := make(map[string]Entry, len(files))
-```
-Note: map capacity is a *hint* — the runtime approximates bucket count but does not guarantee zero resizes, unlike slices where capacity is an exact allocation.
-
-**Preallocate slices when using append in loops:**
-Slice capacity is an exact allocation; `append` incurs zero reallocations until capacity is reached:
-```go
-// ❌ Repeated doubling reallocations
-out := make([]Result, 0)
-for _, v := range input { out = append(out, process(v)) }
-
-// ✅ Single allocation
-out := make([]Result, 0, len(input))
-for _, v := range input { out = append(out, process(v)) }
-```
-
-**Pass values, not pointers, for small fixed-size types:**
-`string`, `io.Reader`, and `time.Time` are already small fixed-size headers. Passing `*string` or `*io.Reader` adds indirection with no benefit and may cause the pointee to escape to the heap:
-```go
-// ❌ Unnecessary pointer — pointee may escape, callers must deref
-func process(s *string) { fmt.Println(*s) }
-
-// ✅ Value copy is cheap; no heap escape for the caller's local
-func process(s string) { fmt.Println(s) }
-```
-Exceptions: large structs where copying is genuinely expensive (confirm with benchmarks), or when the function must mutate the caller's variable.
+- Prefer `strconv` over `fmt` in hot conversion loops.
+- Hoist constant `[]byte("...")` conversions out of loops.
+- Preallocate slices/maps for append/populate loops.
+- Avoid unnecessary pointers for small value-like types when mutation is not required.
 
 **Pitfalls:**
 - Adding `sync.Pool` before profiling shows allocation as the bottleneck — pool overhead is non-zero
@@ -471,32 +413,9 @@ Adjust Go runtime parameters when defaults are a measured bottleneck — not bef
 
 **How:**
 
-**GOMAXPROCS:**
-- Default: `runtime.NumCPU()` — correct for most workloads.
-- I/O-heavy services (waiting on network, disk) may benefit from a higher value; CPU-bound services rarely do.
-- Set via env var: `GOMAXPROCS=16 ./myservice`, or programmatically: `runtime.GOMAXPROCS(n)`.
-- In containers, the default reads host CPU count — consider `automaxprocs` (`go.uber.org/automaxprocs`) to read cgroup limits.
-
-**debug.SetGCPercent:**
-Controls the GC trigger ratio programmatically (same effect as `GOGC` env var):
-```go
-import "runtime/debug"
-
-// Double heap budget before a known allocation spike
-debug.SetGCPercent(200)
-defer debug.SetGCPercent(100) // restore after
-```
-Use sparingly; prefer `GOGC` env var for persistent tuning and `GOMEMLIMIT` for container environments.
-
-**runtime.MemStats for ad-hoc diagnostics:**
-For one-off investigations when `runtime/metrics` is not yet wired up:
-```go
-var m runtime.MemStats
-runtime.ReadMemStats(&m)
-log.Printf("heap alloc=%d MB, sys=%d MB, GC cycles=%d",
-    m.HeapAlloc>>20, m.Sys>>20, m.NumGC)
-```
-Prefer `runtime/metrics` in production (see Pattern 5); `MemStats` stops the world briefly.
+- Keep `GOMAXPROCS` at defaults unless traces/profiles justify a change.
+- Use `GOMEMLIMIT` and `GOGC` only with measured evidence and sufficient headroom.
+- Keep process-wide runtime knob changes in `main`, not libraries.
 
 **Pitfalls:**
 - `runtime.GOMAXPROCS` called in library code affects the entire process — leave it to the application's `main`.
@@ -548,19 +467,10 @@ Feed a real production CPU profile back into the compiler to enable inlining and
 **When:** Service has been running in production long enough to have a representative CPU profile, and further micro-optimizations have been exhausted.
 
 **How:**
-1. Collect a CPU profile from a running production instance (see Pattern 1b):
-   ```bash
-   curl -o default.pgo 'http://localhost:6060/debug/pprof/profile?seconds=30'
-   ```
-2. Place `default.pgo` in the main package directory (Go 1.21+ auto-detects it):
-   ```bash
-   go build ./cmd/myservice        # Go 1.21+ picks up default.pgo automatically
-   ```
-   Or specify explicitly (Go 1.20+):
-   ```bash
-   go build -pgo=default.pgo ./cmd/myservice
-   ```
-3. Benchmark before and after with `benchstat` to confirm improvement.
+
+1. Collect representative CPU profiles from real traffic.
+2. Build with PGO (`default.pgo` or explicit `-pgo` flag).
+3. Confirm impact with `benchstat`.
 
 **Pitfalls:**
 - A profile from an atypical workload (e.g., load test, not real traffic) may optimize the wrong paths.
@@ -587,9 +497,8 @@ Feed a real production CPU profile back into the compiler to enable inlining and
 - [ ] Performance change justified by pprof or benchmark evidence (not intuition)
 - [ ] Before/after benchmark numbers documented; `go test -bench . -benchmem` run
 - [ ] Only one profile type collected per benchmark run (CPU and heap not simultaneous)
-- [ ] Slices preallocated with known capacity; maps preallocated with `make(map[K]V, n)`
-- [ ] `fmt.Sprint`/`Sprintf` replaced with `strconv` equivalents in hot loops (confirmed by benchmem)
-- [ ] `sync.Pool` usage justified by benchmark; no cross-goroutine sharing without reset
+- [ ] Preallocation / builder / conversion optimizations are applied where hot paths justify them
+- [ ] `sync.Pool` usage is benchmark-justified and safely reset
 - [ ] Escape analysis (`-gcflags=-m`) reviewed for unexpected heap escapes
 - [ ] `GOMEMLIMIT` set with >=10% headroom below container memory limit
 - [ ] `GOGC` changed only when GC CPU fraction is the measured bottleneck; gctrace reviewed after
