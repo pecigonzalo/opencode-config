@@ -11,27 +11,7 @@
   ],
   // Planner agent as default entry point (read-only planning, hands off to universal)
   "default_agent": "planner",
-  "provider": {
-    "github-copilot": {
-      "models": {
-        "gpt-5.3-codex": {
-          "modalities": {
-            "input": [
-              "text",
-              "image"
-            ],
-            "output": [
-              "text"
-            ],
-          },
-          "limit": {
-            "context": 272000,
-            "output": 128000,
-          },
-        },
-      },
-    },
-  },
+  "provider": {},
   // Agent model assignments
   "agent": {
     // Disable built-in agents (we have custom planner)
@@ -49,11 +29,12 @@
     },
     // Primary agents (user-facing)
     "planner": {
-      "model": "github-copilot/gpt-5.2", // Deep reasoning at standard cost for strategic planning
+      "model": "github-copilot/gpt-5.4", // Deep reasoning at standard cost for strategic planning
       "temperature": 0.4, // Slightly higher for creative problem decomposition
     },
     "orchestrator": {
-      "model": "github-copilot/claude-sonnet-4.6", // Balanced for execution coordination
+      // "model": "github-copilot/claude-sonnet-4.6", // Balanced for execution coordination
+      "model": "github-copilot/gpt-5.3-codex", // Test a larger context window agent
       "description": "Execution orchestrator that delegates to subagents, enforces quality gates, and drives tasks to completion. Can execute plans from planner or handle direct requests",
       "temperature": 0.3,
       "prompt": "{file:./agents/universal.md}",
@@ -139,7 +120,7 @@
       },
     },
     "thinker": {
-      "model": "github-copilot/gpt-5.3-codex", // 272k context, agentic tool use, deep reasoning
+      "model": "github-copilot/gpt-5.4",
       "temperature": 0.5,
       "reasoningEffort": "high", // Leverage extended reasoning capabilities
     },
@@ -258,6 +239,6 @@
     },
   },
   // Misc settings
-  "autoupdate": true,
+  "autoupdate": false,
   "share": "disabled",
 }
