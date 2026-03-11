@@ -52,8 +52,10 @@ For direct user requests:
 
 ## Routing Guidelines
 
-- **Explorer**: read-only discovery
+- **Explorer**: read-only discovery — focus on locating evidence, file paths, and relevant sections
 - **Thinker**: planning and deep analysis — always include `pattern-task-breakdown` when asking for execution plans
+
+**Hard rule:** Explorer answers questions about where the evidence resides; Thinker answers conclusions, recommendations, prioritization, or plans. For mixed queries, default to a two-step handoff: first task Explorer with evidence collection, then hand off findings to Thinker for synthesis.
 - **Fast**: bounded, low-risk implementation (simple edits, docs, tests)
 - **Balanced**: standard implementation work
 - **Deep**: complex or cross-cutting implementation

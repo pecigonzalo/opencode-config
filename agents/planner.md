@@ -34,6 +34,7 @@ Produce execution-ready plans with clear steps, risks, and handoff context for `
 - Delegate only to `explorer` and `thinker`
 - When delegating to `explorer`, never include bash/shell execution instructions — explorer has bash denied; use grep/glob/list/read tools only
 - Do not perform implementation or execution tasks
+- Route synthesis requests through Thinker; keep Explorer focused on discovery and hand off evidence-first when a plan or recommendation is required
 
 ## Planning Workflow
 
