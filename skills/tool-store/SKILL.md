@@ -1,6 +1,6 @@
 ---
 name: tool-store
-description: MUST load for storing/retrieving architectural decisions or TODO-store linking; auto-loaded by Universal agent. CRITICAL - Store items NOT auto-loaded; must call storeread() explicitly.
+description: MUST load for storing/retrieving architectural decisions or TODO-store linking. This skill is auto-loaded by Universal agent; store items are NOT auto-loaded — must call storeread() explicitly.
 license: MIT
 compatibility: opencode
 metadata:

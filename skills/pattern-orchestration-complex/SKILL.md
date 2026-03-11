@@ -151,46 +151,13 @@ Output as markdown following pattern-task-breakdown skill format.
 
 **Only continue after user says "yes" or "proceed" or "approved"**
 
-### Step 4: Setup Session
+### Step 4: Track Session Context
 
-**Once approved, create session for tracking:**
+**Once approved, record progress using the store** (preferred) or a short in-chat summary:
 
-1. **Create session:**
-   ```bash
-   Session ID: {timestamp}-{random}
-   Location: .opencode/sessions/{session-id}/
-   ```
-
-2. **Create context file:**
-   ```markdown
-   # Task Context: {Feature Name}
-   
-   Session ID: {session-id}
-   Created: {timestamp}
-   Status: in_progress
-   
-   ## Current Request
-   {User's original request}
-   
-   ## Plan Approved
-   {Link to or summary of approved plan}
-   
-   ## Requirements
-   {All functional and non-functional requirements}
-   
-   ## Decisions Made
-   {Architectural and technical decisions from planning}
-   
-   ## Files to Modify/Create
-   {Complete list from all phases}
-   
-   ## Progress
-   [ ] Phase 1: {name}
-     [ ] Task 1.1: {description}
-     [ ] Task 1.2: {description}
-   [ ] Phase 2: {name}
-     [ ] Task 2.1: {description}
-   ```
+- Persist the approved plan via `storewrite` if not already done (see Step 5)
+- For shorter tasks, a brief in-chat summary of approved phases and current status is sufficient
+- Do NOT create `.opencode/sessions/` artifact files
 
 **Session is now ready for execution**
 
@@ -270,41 +237,30 @@ Success Criteria:
 - [ ] Documentation updated if needed?
 
 **If ALL checked → Proceed to next step**
-**If ANY unchecked → Load pattern-retry skill and loop back**
+**If ANY unchecked → Loop back with specific feedback**
 
 #### 3. Loop Back if Quality Gate Fails
 
 **If work doesn't meet criteria:**
 
-1. Load pattern-retry skill
-2. Follow 3-attempt graduated strategy:
-   - Attempt 1: Enhanced guidance, same agent
-   - Attempt 2: Escalate to more capable agent
-   - Attempt 3+: Ask user for intervention
-
-3. Update session context with retry attempts
+1. Re-delegate with enhanced guidance, same agent (attempt 1)
+2. Escalate to a more capable agent (attempt 2)
+3. After 2 autonomous retries, escalate to the user (attempt 3+)
 
 **Don't proceed to next task until current task passes quality gate**
 
 #### 4. Commit Work
 
-**Create atomic commit for completed task:**
+**Create an atomic commit for each completed task** (ask the user to commit, or commit directly if the task included write permissions):
 
-```bash
-git add {files changed in this task}
-git commit -m "{Clear commit message describing what was done}
-
-- {Detail 1}
-- {Detail 2}
-
-Task {X.Y} from {feature name}"
-```
+- Stage only the files changed in this task
+- Use a clear commit message describing what was done and why
+- Each commit should represent a working state
 
 **Why atomic commits:**
 - Easy to rollback if needed
 - Clear history of what changed when
 - Bisect-friendly for debugging
-- Each commit represents working state
 
 ### Phase Management
 
@@ -366,8 +322,8 @@ Success Criteria:
 
 **If issues found:**
 1. Prioritize by severity
-2. For critical issues: Load pattern-retry and fix before proceeding
-3. For minor issues: Document as follow-up tasks or fix immediately
+2. For critical issues: loop back with enhanced guidance (up to 2 autonomous retries), then escalate to user
+3. For minor issues: document as follow-up tasks or fix immediately
 
 **If all good:**
 - Proceed to cleanup
@@ -384,78 +340,30 @@ Success Criteria:
 
 ### Step 1: Run Final Tests
 
-**Ensure everything works end-to-end:**
+**Ensure everything works end-to-end using the project's task runner** (e.g., `task test`, `make test`, or equivalent — check the repo's `Taskfile`, `Makefile`, or `package.json` scripts first):
 
-```bash
-# Run full test suite
-npm test  # or equivalent
-
-# Run linter
-npm run lint
-
-# Build (if applicable)
-npm run build
-```
+- Full test suite must pass
+- Linter must pass
+- Build must succeed (if applicable)
 
 **All should pass before finalizing**
 
 ### Step 2: Final Commit (if needed)
 
-**If any cleanup changes needed:**
+**If any cleanup changes are needed, create a final atomic commit** with a clear message describing what was cleaned up.
 
-```bash
-git add .
-git commit -m "Final cleanup for {feature name}
+### Step 3: Summarize Work
 
-- Documentation updates
-- Minor formatting fixes
-- {any other cleanup}
-"
-```
+**Provide a brief summary to the user in chat** (do NOT write a summary file unless explicitly requested):
 
-### Step 3: Create Summary
+- What was built and key decisions
+- Files created or modified (count + purpose)
+- Test coverage / pass status
+- Known limitations and follow-up items
 
-**Document what was accomplished:**
+### Step 4: Notify User
 
-```markdown
-# Summary: {Feature Name}
-
-**Session**: {session-id}
-**Started**: {timestamp}
-**Completed**: {timestamp}
-**Duration**: {hours}
-
-## What Was Built
-{1-2 paragraph summary of implementation}
-
-## Files Created/Modified
-- {file 1} - {purpose}
-- {file 2} - {purpose}
-- ... ({N} files total)
-
-## Key Decisions
-- {Decision 1 and rationale}
-- {Decision 2 and rationale}
-
-## Testing
-- Test coverage: {%}
-- All tests passing: {yes/no}
-
-## Known Limitations
-- {Limitation 1 if any}
-- {Limitation 2 if any}
-
-## Follow-up Items
-- [ ] {Future improvement 1}
-- [ ] {Future improvement 2}
-
-## Learnings
-{Any insights or challenges encountered}
-```
-
-### Step 4: Cleanup Session
-
-**Ask user before removing files:**
+**Confirm completion in chat:**
 
 ```
 Task complete! 
@@ -482,7 +390,7 @@ Summary of work:
 ### Execution Phase
 ✅ Execute one task at a time
 ✅ Quality gate after each task
-✅ Retry with strategy if needed
+✅ Retry with graduated escalation if needed
 ✅ Atomic commits per task
 ✅ Update session after each task
 
@@ -551,13 +459,13 @@ Summary of work:
 
 ```
 1. Planning: Security audit first
-   - Delegate to light + role-security-auditor
+   - Delegate to fast + role-security-auditor
    - Identify all vulnerabilities
    - Prioritize by severity
 2. User Approval: Review findings and plan
 3. Session Setup: Track each vulnerability
 4. Execution:
-   - Fix critical issues (heavy + role-security-auditor)
+   - Fix critical issues (deep + role-security-auditor)
    - Fix high-priority issues
    - Fix medium-priority issues
 5. Verification: Security re-audit
@@ -573,10 +481,9 @@ Summary of work:
 - Pattern-orchestration-complex executes the plan
 - Use both together for planning phase
 
-### With pattern-retry
-- Pattern-retry handles quality gate failures
-- Load when tasks don't meet criteria
-- Both work together for quality assurance
+### With retry logic
+- Quality gate failures are handled inline: re-delegate with enhanced guidance (attempt 1), escalate agent (attempt 2), escalate to user (attempt 3+)
+- Both quality gates and retry logic work together for quality assurance
 
 ---
 
@@ -596,7 +503,7 @@ Summary of work:
 
 ### "Quality gates keep failing"
 - Requirements may be unclear
-- Load pattern-retry skill
+- Apply retry loop: enhanced guidance → escalate agent → user intervention
 - May need to escalate agent
 - Consider if task too complex (break down)
 
@@ -620,7 +527,7 @@ Summary of work:
 ### During Execution
 - [ ] Executing one task at a time
 - [ ] Quality gate after each task
-- [ ] Using pattern-retry if needed
+- [ ] Retry with graduated escalation if needed
 - [ ] Atomic commits per task
 - [ ] Session state updated
 
@@ -632,8 +539,7 @@ Summary of work:
 - [ ] User notified of completion
 
 ### Cleanup
-- [ ] Asked user about session cleanup
-- [ ] Session archived or removed
+- [ ] Summarized work to user in chat
 - [ ] Follow-up items documented
 
 ---
@@ -644,7 +550,6 @@ Summary of work:
 **Get approval before starting** - User may change scope
 **One task at a time** - Complete fully before next
 **Quality gates are mandatory** - Don't skip reviews
-**Document as you go** - Update session regularly
 **Atomic commits** - One task per commit
 **Verify at the end** - Comprehensive final review
-**Summarize the work** - Document what was built
+**Summarize in chat** - Tell the user what was built

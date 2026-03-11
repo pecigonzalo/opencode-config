@@ -250,7 +250,7 @@ When quality gate fails:
 2. **Attempt 2**: Escalate to more capable agent
 3. **Attempt 3+**: Request user intervention
 
-Load `pattern-retry` skill for detailed retry strategies.
+Retry inline: re-delegate with enhanced guidance (attempt 1), escalate to a more capable agent (attempt 2), then escalate to the user (attempt 3+).
 
 ---
 
