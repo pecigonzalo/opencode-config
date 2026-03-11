@@ -8,6 +8,7 @@
 - Prefer GNU tool variants to macOS variantls
 - Always pipe long outputs (like `go test -v`) to a file and filter its terminal output (like `2>&1 | tee <some-file> | tail -n 20`) for later processing as output can be really long, or alternatively use grep/rg to filter its output
 - Only delegate parallel tasks when some of the task are read-only. Never delegate more than 1 read-write task as agents run into each other
+- Until a project reaches 1.0.0 or is otherwise marked as publicly released, code does not need to maintain backward compatibility
 
 # Tools
 
