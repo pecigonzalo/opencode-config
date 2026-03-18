@@ -8,8 +8,6 @@ metadata:
   focus: decomposition
 ---
 
-**Provides:** Task decomposition methodology, phase breakdown, dependency identification, and effort estimation.
-
 ## Quick Reference
 
 **When to Use**: 4+ files, >60 min effort, complex dependencies, multi-step coordination
@@ -19,6 +17,39 @@ metadata:
 **Template Sections**: Overview, Prerequisites, Tasks (by Phase), Testing Strategy, Total Estimate, Notes
 
 **Best Practices**: Keep tasks small (1-2h), make dependencies clear, include verification, be realistic with estimates
+
+## Storing plans for later execution
+
+If the plan will be stored and later resumed, this skill defines the planning
+shape; `tool-store` only explains the storage tool itself.
+
+When a stored plan will produce **3+ TODOs**, take **more than 60 minutes**, or
+involve **multiple phases or agents**, include `data.prompt_drafts` in the plan
+store entry.
+
+Use this shape:
+
+```json
+{
+  "prompt_drafts": {
+    "universal_handoff_prompt": "@orchestrator Load store: <plan-id>\n\nTask: Execute the stored plan.",
+    "todo_tasks": [
+      {
+        "todo_title": "Short step title",
+        "todo_content": "Short step title [store:<plan-id>]",
+        "task_block": "Task({ ... })"
+      }
+    ]
+  }
+}
+```
+
+Rules:
+
+- `universal_handoff_prompt` is a plain user message, not a `Task({ ... })`
+- `todo_content` should include `[store:<plan-id>]`
+- `task_block` should be a full delegation block for the step
+- Replace placeholder plan IDs after the store item is created
 
 ## Breakdown Process
 

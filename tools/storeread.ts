@@ -21,6 +21,12 @@ export default tool({
       .describe(
         "Optional: Filter by tags in LIST mode (AND logic - must match ALL tags). Example: ['auth', 'critical']",
       ),
+    includeArchived: tool.schema
+      .boolean()
+      .optional()
+      .describe(
+        "Optional: Include archived items in LIST mode (defaults to false to hide archived items).",
+      ),
   },
   async execute(args, context) {
     const file = path.join(
@@ -47,12 +53,18 @@ export default tool({
         }
 
         // LIST MODE: Return summaries only (lightweight)
+        const includeArchived = args.includeArchived ?? false;
+
         const list = items
-          .filter((it) =>
-            args.tags && args.tags.length > 0
-              ? args.tags.every((t) => it.tags?.includes(t))
-              : true,
-          )
+          .filter((it) => {
+            if (!includeArchived && it.status === "archived") {
+              return false;
+            }
+            if (args.tags && args.tags.length > 0) {
+              return args.tags.every((t) => it.tags?.includes(t));
+            }
+            return true;
+          })
           .map((it) => ({
             id: it.id,
             summary: it.summary,

@@ -8,8 +8,6 @@ metadata:
   focus: complex-execution
 ---
 
-**Provides:** 4-phase orchestration workflow (planning, execution, verification, cleanup) for complex multi-file tasks.
-
 ## Quick Reference
 
 **4 Phases**: Planning → Execution → Verification → Cleanup
@@ -180,9 +178,24 @@ Since this is a complex task (3+ TODOs, >60 min), the stored plan **MUST** inclu
 - `universal_handoff_prompt`: a plain copy-paste message (e.g. `@orchestrator Load store: <id>\n\nTask: Execute the plan.`) for the user to resume execution — **not** a `Task({ ... })` wrapper, since `orchestrator`/`universal` are primary agents, not `Task()` targets
 - `todo_tasks[]`: one entry per planned step, each with `todo_content` (for `todowrite`) and `task_block` (the full delegation `Task({ ... })` targeting fast/balanced/deep/etc.)
 
-This ensures that if context is compacted between planning and execution, the agent can load the store item and immediately start delegating using the stored prompts — no context reconstruction needed.
+Minimal shape:
 
-**See `tool-store` skill → "Plan Prompt Drafts" section** for the canonical schema and a complete working example.
+```json
+{
+  "prompt_drafts": {
+    "universal_handoff_prompt": "@orchestrator Load store: <plan-id>\n\nTask: Execute the stored plan.",
+    "todo_tasks": [
+      {
+        "todo_title": "Step title",
+        "todo_content": "Step title [store:<plan-id>]",
+        "task_block": "Task({ ... })"
+      }
+    ]
+  }
+}
+```
+
+This ensures that if context is compacted between planning and execution, the agent can load the store item and immediately start delegating using the stored prompts — no context reconstruction needed.
 
 **Benefits:**
 - Plan and decisions survive session cleanup and compaction

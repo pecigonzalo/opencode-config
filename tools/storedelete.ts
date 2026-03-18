@@ -12,7 +12,7 @@ export default tool({
     id: tool.schema
       .string()
       .describe(
-        "Required: UUID of the item to delete from the store",
+        "Required: ID of the item to delete from the store",
       ),
   },
   async execute(args, context) {

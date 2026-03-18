@@ -24,7 +24,7 @@ describe("storewrite tool", () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
-  test("creates store file and returns success with auto-generated uuid", async () => {
+  test("creates store file and returns success with generated id", async () => {
     const response = await storewriteTool.execute(
       { summary: "capture context", tags: ["test"] },
       {} as any,
@@ -32,11 +32,21 @@ describe("storewrite tool", () => {
 
     const parsed = JSON.parse(response);
     expect(parsed.success).toBe(true);
-    expect(parsed.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(parsed.id).toMatch(/^[0-9a-f]{12}$/);
 
     const store = await readStore(tmpDir);
     expect(store).toHaveLength(1);
     expect(store[0].id).toBe(parsed.id);
+  });
+
+  test("generated id is 12 lowercase hex characters", async () => {
+    const response = await storewriteTool.execute(
+      { summary: "id format check", tags: ["test"] },
+      {} as any,
+    );
+    const { id } = JSON.parse(response);
+    expect(id).toHaveLength(12);
+    expect(id).toMatch(/^[0-9a-f]{12}$/);
   });
 
   test("written item has summary, tags, default status, createdAt, and updatedAt", async () => {
@@ -74,56 +84,52 @@ describe("storewrite tool", () => {
     expect(item.links).toEqual(links);
   });
 
-  test("merges existing item while preserving createdAt", async () => {
-    const id = "existing-item";
+  test("each call always creates a new item (create-only)", async () => {
     await storewriteTool.execute(
-      { id, summary: "initial", tags: ["one"], status: "active" },
-      {} as any,
-    );
-
-    const [first] = await readStore(tmpDir);
-    const { createdAt, updatedAt: originalUpdatedAt } = first;
-
-    await new Promise<void>((resolve) => setTimeout(resolve, 10));
-
-    await storewriteTool.execute(
-      { id, summary: "updated", tags: ["two"], status: "archived" },
-      {} as any,
-    );
-
-    const [merged] = await readStore(tmpDir);
-    expect(merged.createdAt).toBe(createdAt);
-    expect(merged.summary).toBe("updated");
-    expect(merged.tags).toEqual(["two"]);
-    expect(merged.status).toBe("archived");
-    expect(merged.updatedAt).not.toBe(originalUpdatedAt);
-    expect((await readStore(tmpDir))).toHaveLength(1);
-  });
-
-  test("writing two items stores both", async () => {
-    await storewriteTool.execute(
-      { id: "first", summary: "one", tags: ["1"] },
+      { summary: "first", tags: ["one"], status: "active" },
       {} as any,
     );
     await storewriteTool.execute(
-      { id: "second", summary: "two", tags: ["2"] },
+      { summary: "second", tags: ["two"], status: "active" },
       {} as any,
     );
 
     const store = await readStore(tmpDir);
     expect(store).toHaveLength(2);
-    expect(store.map((item: any) => item.id).sort()).toEqual(["first", "second"]);
+    expect(store[0].summary).toBe("first");
+    expect(store[1].summary).toBe("second");
   });
 
-  test("writing with explicit id stores item at that id", async () => {
-    const explicitId = "custom-id-value";
-    await storewriteTool.execute(
-      { id: explicitId, summary: "explicit", tags: ["custom"] },
-      {} as any,
+  test("two calls produce distinct ids", async () => {
+    const r1 = JSON.parse(
+      await storewriteTool.execute({ summary: "a", tags: ["t"] }, {} as any),
     );
+    const r2 = JSON.parse(
+      await storewriteTool.execute({ summary: "b", tags: ["t"] }, {} as any),
+    );
+    expect(r1.id).not.toBe(r2.id);
+  });
 
-    const [item] = await readStore(tmpDir);
-    expect(item.id).toBe(explicitId);
+  test("new item id does not collide with ids already in store", async () => {
+    // Pre-seed the store with every possible 12-hex-char ID except one to
+    // exercise the collision-retry path. Doing that literally would be
+    // impractical, so instead we pre-populate a handful of items and verify
+    // the returned id is not among them.
+    const existingIds: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const r = JSON.parse(
+        await storewriteTool.execute({ summary: `item ${i}`, tags: ["seed"] }, {} as any),
+      );
+      existingIds.push(r.id);
+    }
+
+    const newR = JSON.parse(
+      await storewriteTool.execute({ summary: "fresh", tags: ["new"] }, {} as any),
+    );
+    expect(existingIds).not.toContain(newR.id);
+
+    const store = await readStore(tmpDir);
+    expect(store).toHaveLength(6);
   });
 
   test("corrupt store file is backed up and replaced", async () => {

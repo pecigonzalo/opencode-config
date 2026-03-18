@@ -72,10 +72,10 @@ describe("storeread tool", () => {
       expect(result).toEqual({ list: [] });
     });
 
-    test("returns all items when no filter", async () => {
+    test("excludes archived items by default", async () => {
       await writeStoreItems(ITEMS);
       const result = await runTool({});
-      expect(result.list).toHaveLength(2);
+      expect(result.list).toHaveLength(1);
       expect(result.list).toEqual([
         {
           id: "aaa-111",
@@ -86,16 +86,13 @@ describe("storeread tool", () => {
           createdAt: "2024-01-01T00:00:00.000Z",
           updatedAt: "2024-01-02T00:00:00.000Z",
         },
-        {
-          id: "bbb-222",
-          summary: "Second item",
-          tags: ["database"],
-          status: "archived",
-          links: undefined,
-          createdAt: "2024-01-03T00:00:00.000Z",
-          updatedAt: "2024-01-04T00:00:00.000Z",
-        },
       ]);
+    });
+
+    test("includes archived items when explicitly requested", async () => {
+      await writeStoreItems(ITEMS);
+      const result = await runTool({ includeArchived: true });
+      expect(result.list).toHaveLength(2);
     });
 
     test("filters items by tags with AND logic", async () => {
@@ -120,10 +117,26 @@ describe("storeread tool", () => {
       expect(result.list).toEqual([]);
     });
 
-    test("empty tags array returns all items", async () => {
+    test("empty tags array returns all non-archived items", async () => {
       await writeStoreItems(ITEMS);
       const result = await runTool({ tags: [] });
-      expect(result.list).toHaveLength(2);
+      expect(result.list).toHaveLength(1);
+    });
+
+    test("tag filtering still works when including archived", async () => {
+      await writeStoreItems(ITEMS);
+      const result = await runTool({ tags: ["database"], includeArchived: true });
+      expect(result.list).toEqual([
+        {
+          id: "bbb-222",
+          summary: "Second item",
+          tags: ["database"],
+          status: "archived",
+          links: undefined,
+          createdAt: "2024-01-03T00:00:00.000Z",
+          updatedAt: "2024-01-04T00:00:00.000Z",
+        },
+      ]);
     });
 
     test("list entries include expected summary fields without data", async () => {

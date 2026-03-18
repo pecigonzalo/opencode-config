@@ -4,6 +4,7 @@ This tool supports two modes: LIST (discovery) and READ (retrieval).
 1. LIST MODE (Discovery)
    - Call with NO `id`
    - Returns a list of summaries only (no heavy data)
+   - Defaults to excluding archived items; pass `includeArchived: true` to include them
    - Use `tags` to filter the list (AND logic - must match all tags)
    - Use this to see what work exists without polluting context
    

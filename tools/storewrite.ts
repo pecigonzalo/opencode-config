@@ -5,16 +5,27 @@ import fs from "fs/promises";
 import path from "path";
 import { type StoreItem, writeFile } from "./store-types.js";
 
+/** Generates a 12-character lowercase hex ID, git-short style. */
+function generateId(): string {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Picks a hex ID that does not collide with any existing item. */
+function uniqueId(existing: StoreItem[]): string {
+  const existingIds = new Set(existing.map((it) => it.id));
+  let id = generateId();
+  while (existingIds.has(id)) {
+    id = generateId();
+  }
+  return id;
+}
+
 export default tool({
   description:
     "Save durable, session-scoped memories that survive session compaction. Use to persist architectural decisions, data schemas, design rationale, critical context, and any information that must reliably survive between agent restarts and memory pruning.",
   args: {
-    id: tool.schema
-      .string()
-      .optional()
-      .describe(
-        "Optional UUID for updating existing records. Omit to create new record with auto-generated UUID.",
-      ),
     summary: tool.schema
       .string()
       .min(1)
@@ -42,7 +53,6 @@ export default tool({
       ),
   },
   async execute(args, context) {
-    const id = args.id ?? crypto.randomUUID();
     const dir = path.join(process.cwd(), ".opencode", "sessions");
     const file = path.join(dir, "store.json");
 
@@ -67,31 +77,20 @@ export default tool({
     }
 
     const now = new Date().toISOString();
+    const id = uniqueId(items);
 
-    const existingIndex = items.findIndex((it) => it.id === id);
-
-    const base: StoreItem = {
+    const item: StoreItem = {
       id,
       summary: args.summary,
       tags: args.tags,
       status: args.status ?? "active",
       links: args.links,
       data: args.data,
+      createdAt: now,
       updatedAt: now,
     };
 
-    if (existingIndex >= 0) {
-      const existing = items[existingIndex];
-      const merged = {
-        ...existing,
-        ...base,
-        createdAt: existing.createdAt ?? now,
-      };
-      items[existingIndex] = merged;
-    } else {
-      const item = { ...base, createdAt: now };
-      items.push(item);
-    }
+    items.push(item);
 
     await writeFile(file, JSON.stringify(items, null, 2));
 
