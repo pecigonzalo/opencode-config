@@ -2,16 +2,77 @@
 # Browse OpenCode store items interactively
 
 def main [] {
-    let store_path = (
+    let legacy_store_path = (
         [".opencode" "sessions" "store.json"] | path join
     )
-    if not ($store_path | path exists) {
-        print $"(ansi red)Error:(ansi reset) ($store_path) not found"
+    let yaml_store_dir = (
+        [".opencode" "sessions" "store"] | path join
+    )
+
+    let has_legacy_store = ($legacy_store_path | path exists)
+    let has_yaml_store = ($yaml_store_dir | path exists)
+
+    if (not $has_legacy_store) and (not $has_yaml_store) {
+        print $"(ansi red)Error:(ansi reset) No store backend found at ($legacy_store_path) or ($yaml_store_dir)"
         return
     }
-    let items = (open $store_path)
+
+    let legacy_items = if $has_legacy_store {
+        open $legacy_store_path
+    } else {
+        []
+    }
+
+    let yaml_items = if $has_yaml_store {
+        let yaml_paths = (
+            (glob ([$yaml_store_dir "*.yaml"] | path join))
+            | append (glob ([$yaml_store_dir "*.yml"] | path join))
+            | uniq
+        )
+
+        if ($yaml_paths | is-empty) {
+            []
+        } else {
+            $yaml_paths
+            | each {|yaml_path|
+                try {
+                    open $yaml_path
+                } catch {
+                    print $"(ansi yellow)Warning:(ansi reset) Failed to read ($yaml_path) — skipping"
+                    null
+                }
+            }
+            | compact
+            | each {|item|
+                if (($item | describe) | str starts-with "record") {
+                    [$item]
+                } else {
+                    $item
+                }
+            }
+            | flatten
+        }
+    } else {
+        []
+    }
+
+    let combined_items = (
+        $yaml_items
+        | append $legacy_items
+    )
+
+    let all_items = if ($combined_items | is-empty) {
+        []
+    } else {
+        $combined_items
+        | group-by id
+        | transpose _group_key group_items
+        | each {|group| $group.group_items | first}
+    }
+
+    let items = ($all_items | where {|it| ($it.status? | default "active") != "archived"})
     if ($items | is-empty) {
-        print "Store is empty."
+        print "Store is empty (or all items are archived)."
         return
     }
 
