@@ -5,10 +5,7 @@
     "hostname": "127.0.0.1",
     "mdns": false,
   },
-  "instructions": [
-    "DEV_SPEC.md",
-    "ONE_PAGER.md"
-  ],
+  "instructions": ["DEV_SPEC.md", "ONE_PAGER.md"],
   // Planner agent as default entry point (read-only planning, hands off to universal)
   "default_agent": "planner",
   "provider": {},
@@ -29,12 +26,16 @@
     },
     // Primary agents (user-facing)
     "planner": {
+      "mode": "primary",
       "model": "github-copilot/gpt-5.4", // Deep reasoning at standard cost for strategic planning
       "temperature": 0.4, // Slightly higher for creative problem decomposition
+      "variant": "high",
     },
     "orchestrator": {
-      // "model": "github-copilot/claude-sonnet-4.6", // Balanced for execution coordination
-      "model": "github-copilot/gpt-5.3-codex", // Test a larger context window agent
+      "mode": "primary",
+      "model": "github-copilot/claude-sonnet-4.6", // Balanced for execution coordination
+      // "model": "github-copilot/gpt-5.4", // Test a larger context window agent
+      "variant": "high",
       "description": "Execution orchestrator that delegates to subagents, enforces quality gates, and drives tasks to completion. Can execute plans from planner or handle direct requests",
       "temperature": 0.3,
       "prompt": "{file:./agents/universal.md}",
@@ -49,16 +50,21 @@
       },
     },
     "universal": {
+      "mode": "primary",
       "model": "github-copilot/claude-sonnet-4.6", // Balanced for execution coordination
       "temperature": 0.3,
     },
     // Subagents (delegated to by primary agents)
     "explorer": {
-      "model": "github-copilot/gpt-5-mini", // Free deep reasoning for fast discovery
+      "mode": "subagent",
+      // "model": "github-copilot/gpt-5-mini", // Free deep reasoning for fast discovery
+      "model": "github-copilot/claude-haiku-4.5", // Test haiku
       "temperature": 0.1,
     },
     "fast": {
-      "model": "github-copilot/gpt-5.1-codex-mini", // Compact code reasoning at low cost
+      "mode": "subagent",
+      // "model": "github-copilot/gpt-5.1-codex-mini", // Compact code reasoning at low cost
+      "model": "github-copilot/claude-haiku-4.5", // Test haiku
       "prompt": "{file:./agents/prompts/implementer.md}",
       "description": "Small-scope engineering agent for docs, tests, and bounded edits. Use for quick, low-risk changes with minimal coordination.",
       "temperature": 0.2,
@@ -70,6 +76,7 @@
       },
     },
     "balanced": {
+      "mode": "subagent",
       "model": "github-copilot/claude-sonnet-4.6",
       "prompt": "{file:./agents/prompts/implementer.md}",
       "description": "Implementation agent for standard multi-file features, refactors, and non-trivial bugfixes.",
@@ -82,6 +89,7 @@
       },
     },
     "deep": {
+      "mode": "subagent",
       "model": "github-copilot/claude-opus-4.6",
       "prompt": "{file:./agents/prompts/implementer.md}",
       "description": "Implementation agent for complex, multi-file work and debugging. Use when scope is uncertain, cross-cutting, or requires careful design and verification.",
@@ -94,6 +102,7 @@
       },
     },
     "deep-l": {
+      "mode": "subagent",
       "disable": false,
       "model": "github-copilot/gpt-5.3-codex", // 272k context, agentic tool use, deep reasoning
       "prompt": "{file:./agents/prompts/implementer.md}",
@@ -107,6 +116,7 @@
       },
     },
     "deep-xl": {
+      "mode": "subagent",
       "disable": false,
       "model": "openai/gpt-5.3-codex", // Premium code-specialized model via OpenAI (400k context)
       "prompt": "{file:./agents/prompts/implementer.md}",
@@ -120,9 +130,10 @@
       },
     },
     "thinker": {
+      "mode": "subagent",
       "model": "github-copilot/gpt-5.4",
       "temperature": 0.5,
-      "reasoningEffort": "high", // Leverage extended reasoning capabilities
+      "variant": "xhigh", // Leverage extended reasoning capabilities
     },
   },
   // Plugins for authentication
@@ -197,9 +208,9 @@
       "enabled": false,
       "type": "local",
       "command": [
-        "bunx",
-        "btca",
-        "mcp"
+        "sh",
+        "-c",
+        "cd /Users/pecigonzalo/.config/opencode && exec bunx btca mcp",
       ],
     },
     "GitHub Grep": {
