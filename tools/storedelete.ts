@@ -1,35 +1,43 @@
-declare const Bun: any;
-
 import { tool } from "@opencode-ai/plugin";
-import fs from "fs/promises";
-import path from "path";
-import { type StoreItem, writeFile } from "./store-types.js";
+import {
+  readLegacyJson,
+  removeLegacyItem,
+  withYamlLock,
+} from "./store-types.js";
 
 export default tool({
   description:
-    "Delete a stored item from the session store by ID. Permanently removes the item from store.json. Use this to clean up obsolete, completed, or incorrect store entries. Returns deleted=true if the item was found and removed, deleted=false if the ID was not found.",
+    "Delete a stored item from the session store by ID. Permanently removes " +
+    "the item. Use this to clean up obsolete, completed, or incorrect store " +
+    "entries. Returns deleted=true if the item was found and removed, " +
+    "deleted=false if the ID was not found.",
   args: {
     id: tool.schema
       .string()
-      .describe(
-        "Required: ID of the item to delete from the store",
-      ),
+      .describe("Required: ID of the item to delete from the store"),
   },
-  async execute(args, context) {
+  async execute(args) {
     const { id } = args;
-    const dir = path.join(process.cwd(), ".opencode", "sessions");
-    const file = path.join(dir, "store.json");
 
-    let items: StoreItem[] = [];
-    let deleted = false;
+    // Delete from YAML under per-item lock
+    const yamlDeleted = await withYamlLock<boolean>(id, async (current) => {
+      if (current !== null) {
+        return { result: true, item: null }; // null signals deletion
+      }
+      return { result: false, item: undefined }; // no-op
+    });
 
-    try {
-      const raw = await fs.readFile(file, "utf-8");
-      try {
-        const parsedFile = JSON.parse(raw);
-        if (Array.isArray(parsedFile)) items = parsedFile;
-      } catch (err) {
-        // Gracefully handle JSON parse errors
+    // Also clean up from legacy JSON if present (removeLegacyItem uses its own lock)
+    let legacyDeleted = false;
+    const legacy = await readLegacyJson();
+    if (legacy.ok) {
+      const exists = legacy.items.some((it) => it.id === id);
+      if (exists) {
+        legacyDeleted = await removeLegacyItem(id);
+      }
+    } else if (legacy.error === "corrupt") {
+      // If YAML delete already succeeded, still report success
+      if (!yamlDeleted) {
         return JSON.stringify(
           {
             success: false,
@@ -41,51 +49,10 @@ export default tool({
           2,
         );
       }
-    } catch (err) {
-      // File doesn't exist -> nothing to delete
-      return JSON.stringify(
-        {
-          success: true,
-          id,
-          deleted: false,
-        },
-        null,
-        2,
-      );
     }
 
-    // Filter out the item with matching id (immutable pattern)
-    const initialLength = items.length;
-    const filteredItems = items.filter((item) => item.id !== id);
-    deleted = filteredItems.length < initialLength;
+    const deleted = yamlDeleted || legacyDeleted;
 
-    // Only write if something was deleted
-    if (deleted) {
-      try {
-        await fs.mkdir(dir, { recursive: true });
-        await writeFile(file, JSON.stringify(filteredItems, null, 2));
-      } catch (err) {
-        return JSON.stringify(
-          {
-            success: false,
-            id,
-            deleted: false,
-            error: "Failed to write to store file",
-          },
-          null,
-          2,
-        );
-      }
-    }
-
-    return JSON.stringify(
-      {
-        success: true,
-        id,
-        deleted,
-      },
-      null,
-      2,
-    );
+    return JSON.stringify({ success: true, id, deleted }, null, 2);
   },
 });

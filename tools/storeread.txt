@@ -1,6 +1,10 @@
 Use this tool to query and retrieve structured session memories stored by you or other agents.
 This tool supports two modes: LIST (discovery) and READ (retrieval).
 
+Items are stored as individual YAML files in `.opencode/sessions/store/`.
+Reads also include legacy items from `.opencode/sessions/store.json` for
+backward compatibility. When the same ID exists in both, the YAML file wins.
+
 1. LIST MODE (Discovery)
    - Call with NO `id`
    - Returns a list of summaries only (no heavy data)
@@ -15,6 +19,6 @@ This tool supports two modes: LIST (discovery) and READ (retrieval).
    - Returns the full item including the `data` field
    - Use this when you know exactly what you need to read
    
-   Example: storeread({ id: "auth-plan-v1" }) -> Returns full design doc
+   Example: storeread({ id: "a1b2c3d4e5f6" }) -> Returns full item
 
 Always Prefer LIST mode first if you are unsure what IDs exist.

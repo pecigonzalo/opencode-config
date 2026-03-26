@@ -1,9 +1,9 @@
-declare const Bun: any;
-
 import { tool } from "@opencode-ai/plugin";
-import fs from "fs/promises";
-import path from "path";
-import { type StoreItem, writeFile } from "./store-types.js";
+import {
+  type StoreItem,
+  readAllYamlItems,
+  writeYamlItem,
+} from "./store-types.js";
 
 /** Generates a 12-character lowercase hex ID, git-short style. */
 function generateId(): string {
@@ -12,8 +12,9 @@ function generateId(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Picks a hex ID that does not collide with any existing item. */
-function uniqueId(existing: StoreItem[]): string {
+/** Picks a hex ID that does not collide with any existing YAML item. */
+async function uniqueId(): Promise<string> {
+  const existing = await readAllYamlItems();
   const existingIds = new Set(existing.map((it) => it.id));
   let id = generateId();
   while (existingIds.has(id)) {
@@ -24,7 +25,10 @@ function uniqueId(existing: StoreItem[]): string {
 
 export default tool({
   description:
-    "Save durable, session-scoped memories that survive session compaction. Use to persist architectural decisions, data schemas, design rationale, critical context, and any information that must reliably survive between agent restarts and memory pruning.",
+    "Save durable, session-scoped memories that survive session compaction. " +
+    "Use to persist architectural decisions, data schemas, design rationale, " +
+    "critical context, and any information that must reliably survive between " +
+    "agent restarts and memory pruning.",
   args: {
     summary: tool.schema
       .string()
@@ -52,32 +56,9 @@ export default tool({
         "Optional: Structured payload containing the actual data to persist",
       ),
   },
-  async execute(args, context) {
-    const dir = path.join(process.cwd(), ".opencode", "sessions");
-    const file = path.join(dir, "store.json");
-
-    await fs.mkdir(dir, { recursive: true });
-
-    let items: StoreItem[] = [];
-
-    try {
-      const raw = await fs.readFile(file, "utf-8");
-      try {
-        const parsedFile = JSON.parse(raw);
-        if (Array.isArray(parsedFile)) items = parsedFile;
-      } catch (err) {
-        // Gracefully handle JSON parse errors by backing up the file and resetting
-        const backup = file + ".bak";
-        await fs.writeFile(backup, raw, "utf-8");
-        items = [];
-      }
-    } catch (err) {
-      // file doesn't exist -> start fresh
-      items = [];
-    }
-
+  async execute(args) {
+    const id = await uniqueId();
     const now = new Date().toISOString();
-    const id = uniqueId(items);
 
     const item: StoreItem = {
       id,
@@ -90,9 +71,7 @@ export default tool({
       updatedAt: now,
     };
 
-    items.push(item);
-
-    await writeFile(file, JSON.stringify(items, null, 2));
+    await writeYamlItem(item);
 
     return JSON.stringify({ success: true, id }, null, 2);
   },

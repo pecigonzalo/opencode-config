@@ -6,7 +6,7 @@ This tool is for SAVING durable, session-scoped memories that must survive sessi
 Prompt guidance:
 - Use storewrite when you need to make information durable for the session lifecycle.
 - Provide a concise summary (required), at least one tag (required) for discoverability, and optional structured payload in the `data` field.
-- Supply an explicit `id` when you intend to update an existing record; omit `id` to create a new record and let the system generate a UUID.
+- Each call creates a new item with a unique auto-generated hex ID.
 
 When to use:
 - Persist architectural decisions and the rationale behind them.
@@ -21,11 +21,10 @@ Usage:
     "tags": ["db", "critical", "design"],
     "data": { "reason": "strong consistency required", "alternatives": ["cockroachdb"] }
   }
-- To update an existing entry: include its `id` in the payload. The tool will merge updates and bump `updatedAt`.
 
 Behavior guarantees:
-- Stored items are session-scoped and written to `.opencode/sessions/{sessionID}/store.json` under the current working directory.
-- The tool automatically creates directories and the file if they do not exist.
-- JSON parse errors in the existing store are handled gracefully: the tool backs up the broken file and continues with a fresh store to avoid data loss.
+- Stored items are session-scoped and written as individual YAML files under `.opencode/sessions/store/<encoded-id>.yaml`.
+- The tool automatically creates directories and files as needed.
+- Writes are atomic (write-then-rename) to prevent partial writes.
 
 Use this to persist memory.
