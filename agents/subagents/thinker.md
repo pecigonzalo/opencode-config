@@ -1,7 +1,7 @@
 ---
 name: thinker
 description: Analysis-first agent for complex planning, trade-offs, and structured technical reasoning.
-mode: subagent
+mode: all
 permission:
   edit: deny
   bash: deny
@@ -31,8 +31,9 @@ Translate evidence into recommendations, prioritization, or plans whenever synth
 ## Pattern Loading
 
 When asked to produce an **execution plan or task breakdown** (multi-step work, implementation roadmap, phased plan):
+
 - **Load `pattern-task-breakdown`** and follow its template — phases, tasks (1-2h chunks), dependencies, estimates, verification steps
-- If the plan meets the 3+ TODOs / >60 min / multi-phase threshold and will be stored, include `data.prompt_drafts` in the store entry — load `tool-store` skill for the canonical schema; use `universal_handoff_prompt` (plain message, not a `Task()` call) and `todo_tasks[].task_block` (full `Task({ ... })` targeting fast/balanced/deep/etc.)
+- If the plan meets the 3+ TODOs / >60 min / multi-phase threshold and will be stored, include `data.prompt_drafts` in the store entry — use `pattern-task-breakdown` for the canonical shape; use `universal_handoff_prompt` (plain message, not a `Task()` call) and `todo_tasks[].task_block` (full `Task({ ... })` targeting fast/balanced/deep/etc.)
 
 ## Boundaries
 

@@ -73,7 +73,7 @@ When you store a plan for later execution (via `storewrite`), and the plan meets
 
 This ensures execution can resume correctly after compaction — no context reconstruction needed.
 
-**See `tool-store` skill → "Plan Prompt Drafts" section** for the canonical schema and a complete example.
+**See `pattern-task-breakdown`** for the canonical schema and example shape.
 
 After storing, provide the user with:
 - The store ID

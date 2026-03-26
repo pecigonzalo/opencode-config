@@ -92,7 +92,7 @@ Return:
 |-----------|--------|
 | 2+ complexity/risk/size indicators present | **Load `pattern-orchestration-complex`** and follow its 4-phase workflow |
 | Task requires multi-step breakdown or >60 min plan | **Delegate to Thinker with `pattern-task-breakdown`** |
-| Storing a plan that will produce 3+ TODOs or >60 min effort | **Store `prompt_drafts`** in plan data — see `tool-store` skill |
+| Storing a plan that will produce 3+ TODOs or >60 min effort | **Store `prompt_drafts`** in plan data — see `pattern-task-breakdown` |
 
 **Complexity indicators** (size, complexity, or risk):
 - 4+ files affected
@@ -293,7 +293,7 @@ storewrite({
 // Replace <plan-id> placeholder with returned id before presenting to user
 ```
 
-See `tool-store` skill → "Plan Prompt Drafts" section for the canonical schema and a full working example.
+See `pattern-task-breakdown` for the canonical `prompt_drafts` shape.
 
 **Step 2: Create TODO with reference**
 ```javascript
@@ -455,7 +455,7 @@ How would you like to proceed?
 ### With tool-store
 - Detailed guidance on store operations
 - ADR patterns for architectural decisions
-- **Plan Prompt Drafts** section: canonical schema for embedding copy-pastable `Task({ ... })` blocks in stored plans
+- Use alongside planning/orchestration skills when stored plans or TODO-linked execution are involved
 
 ---
 
