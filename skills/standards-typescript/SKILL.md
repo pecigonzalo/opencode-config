@@ -11,9 +11,12 @@ metadata:
 
 # TypeScript Standards
 
-**Provides:** Idiomatic TypeScript patterns, type system usage, imports/exports, naming conventions, JSDoc rules, formatting, and high-signal disallowed features. Based on the [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html).
+**Provides:** Idiomatic TypeScript patterns, type system usage, imports/exports, naming conventions, JSDoc rules, formatting, and a complete disallowed-features reference. Based on the [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html).
 
-**Primary references:** Google TS Style Guide and TS Handbook.
+**Primary references:**
+
+- [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/)
 
 ## Quick Reference
 
@@ -66,7 +69,18 @@ npx prettier --check .     # check formatting
 npx prettier --write .     # auto-format
 ```
 
-**Recommended `tsconfig` flags:** `strict`, `noUncheckedIndexedAccess`.
+**Recommended `tsconfig` flags:**
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true
+  }
+}
+```
 
 ---
 
@@ -81,7 +95,19 @@ File order (blank line between each section):
 
 - UTF-8 encoding; use actual Unicode characters — not escape sequences — for printable chars (e.g., `const pi = 'π'`, not `'\u03C0'`).
 
-Keep file structure simple and consistent; avoid boilerplate comments/examples unless they add non-obvious value.
+```typescript
+// ✅ Correct file structure
+/**
+ * @fileoverview Utilities for processing user data.
+ */
+
+import {processUser} from './user-processor';
+import type {User} from './types';
+
+export function formatUser(user: User): string {
+  return processUser(user).displayName;
+}
+```
 
 ---
 
@@ -94,7 +120,22 @@ Keep file structure simple and consistent; avoid boilerplate comments/examples u
 - **Relative paths** for project-internal code (`./foo`, `../bar`); module paths for packages.
 - `import type {Foo}` for type-only imports — erased at compile time, avoids circular deps.
 
-Prefer concise imports: named by default, namespace for large APIs, and `import type` for type-only symbols.
+```typescript
+// ✅ Named import
+import {Component, OnInit} from '@angular/core';
+
+// ✅ Namespace import for large API
+import * as path from 'path';
+
+// ✅ Type-only import
+import type {User} from './types';
+
+// ❌ require — never use in TS
+const fs = require('fs');
+
+// ❌ reference directive — never use
+/// <reference path="..." />
+```
 
 ### Exports
 
@@ -103,7 +144,25 @@ Prefer concise imports: named by default, namespace for large APIs, and `import 
 - `export type {Foo}` for type re-exports.
 - No container classes with only static methods — use module-level named exports instead.
 
-Named exports only. Avoid default exports, mutable exports, and static-only container classes.
+```typescript
+// ✅ Named exports
+export const MAX_RETRIES = 3;
+export function processUser(user: User): ProcessedUser { ... }
+export type {ProcessedUser};
+
+// ❌ Default export — never
+export default class UserService { ... }
+
+// ❌ Mutable export
+export let counter = 0;
+
+// ❌ Container class as namespace — use standalone exports instead
+export class Utils {
+  static formatDate(d: Date): string { ... }
+}
+// ✅ Instead:
+export function formatDate(d: Date): string { ... }
+```
 
 ---
 
@@ -113,18 +172,57 @@ Named exports only. Avoid default exports, mutable exports, and static-only cont
 - One declaration per line.
 - No use before declaration.
 
-Keep declarations simple: `const` by default, `let` when reassigned, never `var`.
+```typescript
+// ✅
+const maxRetries = 3;
+let attempt = 0;
+
+// ❌
+var count = 0;          // no var
+let a = 1, b = 2;      // no multiple declarations
+```
 
 ---
 
-## Arrays & Objects
+## Arrays
 
-- Never `new Array()` / `new Object()` — use literals (`[]`, `{}`).
-- Prefer spread for shallow copy/merge.
-- Use `for...of` for arrays.
-- Use `Object.keys/values/entries` for object iteration.
+- Never `new Array()` — use `[]` literals.
+- Spread for shallow copy/concat: `[...foo, ...bar]`.
+- `for...of` to iterate; destructuring for unpacking.
+
+```typescript
+// ✅
+const items: string[] = [];
+const copy = [...original];
+const combined = [...arr1, ...arr2];
+for (const item of items) { ... }
+const [first, second, ...rest] = items;
+
+// ❌
+const bad = new Array(3);
+for (let i = 0; i < items.length; i++) { ... }  // prefer for...of
+```
 
 ---
+
+## Objects
+
+- Never `new Object()` — use `{}` literals.
+- Spread for shallow copy: `{...base, override: value}`.
+- `for...of Object.keys()` / `Object.values()` / `Object.entries()` instead of `for...in`.
+- Destructuring with defaults: `const {str = 'default'} = obj`.
+
+```typescript
+// ✅
+const config = {host: 'localhost', port: 8080};
+const updated = {...config, port: 9090};
+for (const [key, value] of Object.entries(config)) { ... }
+const {host = 'localhost', port = 8080} = options;
+
+// ❌
+const bad = new Object();
+for (const key in obj) { ... }   // use Object.keys/values/entries instead
+```
 
 ---
 
@@ -139,7 +237,34 @@ Keep declarations simple: `const` by default, `let` when reassigned, never `var`
 - **No `prototype` manipulation.**
 - No trailing semicolons after class declarations; blank lines between method declarations.
 
-Use TS-native class features (`private`, `readonly`, parameter properties); avoid `#private` and prototype manipulation.
+```typescript
+// ✅
+class UserService {
+  private readonly cache = new Map<string, User>();
+  private requestCount = 0;
+
+  constructor(
+    private readonly db: Database,
+    private readonly logger: Logger,
+  ) {}
+
+  async getUser(id: string): Promise<User> {
+    this.requestCount++;
+    return this.db.find(id);
+  }
+}
+
+// ❌
+class BadService {
+  public name: string;          // no public modifier needed
+  #secret = 'value';            // no #private fields
+  private count: number;        // initialize at declaration instead
+  constructor() {
+    this.count = 0;             // initialize at declaration
+  }
+}
+BadService.prototype.extra = () => {};  // no prototype manipulation
+```
 
 ---
 
@@ -152,7 +277,46 @@ Use TS-native class features (`private`, `readonly`, parameter properties); avoi
 - **Never `bind()` in event listener registration** — use arrow function properties for stable uninstall references.
 - **Never use `this` outside class methods, constructors, or arrow functions.**
 
-Prefer function declarations for top-level APIs and arrow functions for callbacks. Avoid `bind()` in event registration.
+```typescript
+// ✅ Top-level: function declaration
+function formatUser(user: User): string {
+  return `${user.firstName} ${user.lastName}`;
+}
+
+// ✅ Callback: arrow function with concise body (return value used)
+const names = users.map(u => u.name);
+
+// ✅ Arrow function with block body (return value unused)
+users.forEach(u => {
+  processUser(u);
+});
+
+// ✅ Rest params instead of arguments
+function sum(...nums: number[]): number {
+  return nums.reduce((acc, n) => acc + n, 0);
+}
+
+// ✅ Arrow property for stable event handler reference
+class Component {
+  private readonly handleClick = () => {
+    this.doSomething();
+  };
+
+  mount() {
+    button.addEventListener('click', this.handleClick);
+  }
+
+  unmount() {
+    button.removeEventListener('click', this.handleClick);
+  }
+}
+
+// ❌ Named function expression — use arrow instead
+const format = function formatUser(u: User) { return u.name; };
+
+// ❌ bind in listener registration
+button.addEventListener('click', this.handleClick.bind(this));
+```
 
 ---
 
@@ -166,11 +330,53 @@ Prefer function declarations for top-level APIs and arrow functions for callback
 - Empty catch blocks require an explanatory comment.
 - Type assertions: `as Foo` not `<Foo>`.
 
-Use strict equality, always throw `Error` objects, and prefer `as` assertions over angle-bracket syntax.
+```typescript
+// ✅ Equality
+if (value === null) { ... }
+if (value == null) { ... }    // ok: catches both null and undefined
+
+// ✅ switch with default
+switch (status) {
+  case 'active':
+    return handleActive();
+  case 'inactive':
+    return handleInactive();
+  default:
+    throw new Error(`Unknown status: ${status}`);
+}
+
+// ✅ Error handling
+try {
+  await fetchData();
+} catch (e: unknown) {
+  if (e instanceof Error) {
+    logger.error(e.message);
+  }
+  throw e;
+}
+
+// ✅ Type assertion
+const input = event.target as HTMLInputElement;
+
+// ❌ Never throw non-Error
+throw 'something went wrong';
+throw {code: 404, message: 'Not found'};
+
+// ❌ Old-style assertion syntax
+const input = <HTMLInputElement>event.target;
+```
 
 ### Double Assertions
 
 When a double assertion is unavoidable, use `unknown` as the intermediate:
+
+```typescript
+// ✅
+const foo = bar as unknown as Foo;
+
+// ❌
+const foo = bar as any as Foo;
+```
 
 ---
 
@@ -181,14 +387,41 @@ When a double assertion is unavoidable, use `unknown` as the intermediate:
 - **Rely on type inference** — don't annotate trivially-inferred types.
 - **Annotate** when the type is non-obvious: complex async expressions, empty generics, public API return types.
 
-Rely on inference for obvious locals; annotate non-obvious boundaries and public API returns.
+```typescript
+// ✅ Inferred — no annotation needed
+const isActive = true;
+const count = 42;
+const users = new Map<string, User>();  // explicit generic needed
+
+// ✅ Annotate non-obvious type
+const result: Promise<ProcessedUser[]> = processAll(users);
+
+// ❌ Over-annotated trivially-inferred types
+const isActive: boolean = true;
+const count: number = 42;
+```
 
 ### `unknown` vs `any`
 
 - **Avoid `any`** — use `unknown` and narrow explicitly.
 - Never use `object` (use `{}`, a specific type, or `Record<string, unknown>`).
 
-Prefer `unknown` over `any`; narrow with type guards before use.
+```typescript
+// ✅
+function parseResponse(data: unknown): User {
+  if (!isUser(data)) throw new Error('Invalid user data');
+  return data;
+}
+
+function isUser(val: unknown): val is User {
+  return typeof val === 'object' && val !== null && 'id' in val;
+}
+
+// ❌
+function parseResponse(data: any): User {
+  return data as User;   // unsafe cast, no validation
+}
+```
 
 ### Interfaces vs Types
 
@@ -196,26 +429,83 @@ Prefer `unknown` over `any`; narrow with type guards before use.
 - Use **type aliases** for unions, intersections, and mapped types.
 - Never use a `class` purely as a structural type — use an interface.
 
-Use `interface` for structural object shapes and `type` aliases for unions/mapped/intersection types.
+```typescript
+// ✅ Interface for structural type
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+// ✅ Type alias for union
+type Status = 'active' | 'inactive' | 'pending';
+
+// ✅ Type alias for mapped type
+type ReadonlyUser = Readonly<User>;
+
+// ❌ Class as structural type
+class UserShape {
+  id!: string;
+  name!: string;
+}
+```
 
 ### Null & Optional
 
 - Use `undefined` or `null` contextually; never add `|null` or `|undefined` to type aliases.
 - Prefer optional `?` over explicit `|undefined` for parameters and fields.
 
-Prefer optional `?` for parameters/fields instead of explicit `| undefined` unions.
+```typescript
+// ✅ Optional parameter
+function greet(name?: string): string {
+  return `Hello, ${name ?? 'stranger'}`;
+}
+
+// ✅ Optional field
+interface Config {
+  host: string;
+  timeout?: number;
+}
+
+// ❌ Explicit undefined in union where optional works
+function greet(name: string | undefined): string { ... }
+
+// ❌ Union in type alias
+type MaybeUser = User | null;  // don't add null to aliases
+```
 
 ### Enums
 
 - Use plain `enum` — `const enum` is **banned**.
 
-Use plain `enum`; avoid `const enum`.
+```typescript
+// ✅
+enum Direction {
+  Up = 'UP',
+  Down = 'DOWN',
+  Left = 'LEFT',
+  Right = 'RIGHT',
+}
+
+// ❌ const enum — banned
+const enum Direction { Up, Down }
+```
 
 ### Wrapper Objects
 
 - **Never** use wrapper object instantiation.
 
-Never instantiate wrapper objects (`new String`, `new Boolean`, `new Number`); use primitives.
+```typescript
+// ❌ All of these are banned
+const s = new String('hello');
+const b = new Boolean(true);
+const n = new Number(42);
+
+// ✅ Use primitives
+const s = 'hello';
+const b = true;
+const n = 42;
+```
 
 ---
 
@@ -237,7 +527,24 @@ Never instantiate wrapper objects (`new String`, `new Boolean`, `new Number`); u
 - **Treat acronyms as words**: `loadHttpUrl` not `loadHTTPURL`; `xmlParser` not `XMLParser`. Exception: platform APIs that define their own casing (`XMLHttpRequest`).
 - **Local constants**: `lowerCamelCase`, not `CONSTANT_CASE` (only module-level constants use `CONSTANT_CASE`).
 
-Key naming rules: no `I` prefix for interfaces, acronyms as words (`httpUrl`), and `CONSTANT_CASE` only for module-level constants.
+```typescript
+// ✅
+const MAX_CONNECTIONS = 10;           // module-level constant
+const defaultTimeout = 5000;         // local constant — lowerCamelCase
+
+class HttpClient { ... }              // acronym treated as word
+function loadHttpUrl(url: string) {}  // acronym treated as word
+
+interface UserRepository { ... }      // no I prefix
+function greet(name?: string) {}      // no opt_ prefix
+
+// ❌
+const max_connections = 10;          // no underscore in const
+const DEFAULT_TIMEOUT = 5000;        // local const — use lowerCamelCase
+class HTTPClient { ... }             // acronym not treated as word
+interface IUserRepository { ... }    // no I prefix
+function greet(opt_name?: string) {} // no opt_ prefix
+```
 
 ---
 
@@ -249,7 +556,40 @@ Key naming rules: no `I` prefix for interfaces, acronyms as words (`httpUrl`), a
 - `//` for implementation notes; `/* */` is not used for JSDoc-style comments.
 - Comment *why*, not *what* — code should be self-documenting for the "what".
 
-Use JSDoc for public APIs and comments for non-obvious *why* decisions.
+```typescript
+// ✅ JSDoc on public API
+/**
+ * Fetches a user by ID, returning null if not found.
+ *
+ * Retries up to MAX_RETRIES times on transient network errors.
+ */
+export async function getUser(id: string): Promise<User | null> {
+  ...
+}
+
+// ✅ @param/@return only when non-obvious
+/**
+ * Formats a date for display.
+ * @param date - UTC timestamp in milliseconds (not seconds).
+ * @returns Locale-formatted string using the user's timezone.
+ */
+export function formatDate(date: number): string { ... }
+
+// ✅ Implementation note: why, not what
+// Normalize to empty array because the legacy API returns null for no results.
+const items = response.items ?? [];
+
+// ❌ Redundant JSDoc — type already captures this
+/**
+ * @param id The user ID (string)
+ * @returns The user (User)
+ */
+function getUser(id: string): User { ... }
+
+// ❌ Comment explaining what
+// Increment count
+count++;
+```
 
 ---
 
@@ -266,7 +606,26 @@ Formatting is enforced by **Prettier** (and optionally clang-format). Do not han
 | Trailing commas | In multi-line arrays, objects, and parameter lists |
 | Blank lines in blocks | None at start/end of blocks |
 
-Let Prettier enforce formatting; avoid hand-formatting conventions beyond configured tools.
+```typescript
+// ✅ Formatting examples
+const config = {
+  host: 'localhost',
+  port: 8080,
+  timeout: 5000,     // trailing comma
+};
+
+const message = `Hello, ${user.name}!`;  // template literal for interpolation
+const multiline = `
+  This is a
+  multiline string
+`;
+
+// ❌
+const config = {
+	host: "localhost",    // tabs, double quotes
+	port: 8080
+}                         // missing trailing comma, missing semicolon
+```
 
 ---
 
@@ -274,7 +633,55 @@ Let Prettier enforce formatting; avoid hand-formatting conventions beyond config
 
 Hard bans — **never use these:**
 
-Keep this list short and strict: `var`, default exports, `export let`, `#private`, `const enum`, wrapper objects, `eval`/`Function`, `debugger`, `any` (except strict interop), and `for...in` over arrays.
+| Feature | Reason / Alternative |
+|---|---|
+| `var` declarations | Use `const` or `let` |
+| `new Array()` | Use `[]` literal |
+| `new Object()` | Use `{}` literal |
+| `#private` fields | Use TypeScript `private` keyword |
+| Default exports | Use named exports |
+| `export let` | Use `export const` |
+| `with` statement | Deprecated; confusing scoping |
+| `eval` / `Function(...string)` | Security risk; no dynamic code execution |
+| `const enum` | Inlining breaks module boundaries |
+| Wrapper objects (`new String()`, etc.) | Use primitives |
+| `debugger` in production | Remove before committing |
+| Non-standard ECMAScript features | Stick to the TS/ES standard |
+| Prototype modification | Fragile; breaks encapsulation |
+| `parseInt` / `parseFloat` without validation | Use `Number()` + `isNaN()` |
+| Unary `+` for coercion | Use `Number()` explicitly |
+| `!!` coercion of enum values | Use explicit comparison |
+| `for...in` on arrays | Use `for...of` |
+| `any` (except necessary interop) | Use `unknown` and narrow |
+| `object` type | Use `{}`, specific type, or `Record` |
+| `I` prefix on interfaces | Plain `UpperCamelCase` |
+| `_` prefix/suffix for private | Use `private` keyword |
+
+```typescript
+// ❌ All of these are banned
+
+var x = 1;
+const arr = new Array(3);
+const obj = new Object();
+class Foo { #secret = 1; }
+export default class Foo {}
+export let mutableValue = 0;
+with (obj) { name = 'foo'; }
+eval('doSomething()');
+const E = new Function('return 1');
+const enum Color { Red }
+const s = new String('hello');
+debugger;
+Object.prototype.custom = () => {};
+const n = parseInt('42');           // missing radix check
+const n = +'42';                    // use Number('42')
+if (!!enumValue) {}                 // use enumValue !== 0
+for (const k in arr) {}             // use for...of
+function f(x: any) {}               // use unknown
+function f(x: object) {}            // use {} or Record
+interface IFoo {}                   // no I prefix
+class Service { _data = []; }       // use private
+```
 
 ---
 
@@ -308,13 +715,29 @@ function log(target: any, key: string, descriptor: PropertyDescriptor) { ... }
 ## Verification Checklist
 
 - [ ] `npx tsc --noEmit` passes with no errors
+- [ ] `tsconfig` has `strict: true` (implies `noImplicitAny`, `strictNullChecks`)
 - [ ] `npx eslint --ext .ts .` passes
 - [ ] `npx prettier --check .` passes
-- [ ] Strict mode is enabled in `tsconfig`
-- [ ] No `var`, default exports, `export let`, `#private`, `const enum`, or wrapper object constructors
-- [ ] `unknown` is used instead of `any` unless interop absolutely requires otherwise
-- [ ] Type-only imports use `import type`
-- [ ] Public APIs include JSDoc; comments explain *why*, not *what*
-- [ ] Error handling uses `catch (e: unknown)` and throws `Error` objects
-- [ ] Arrays/objects use idiomatic iteration (`for...of`, `Object.entries/keys/values`)
-- [ ] Naming conventions are respected (no `I` prefix, acronyms as words)
+- [ ] No `var` declarations anywhere
+- [ ] No `any` types (use `unknown` and narrow)
+- [ ] No default exports; all exports are named
+- [ ] No `export let` (only `export const`)
+- [ ] No `#private` fields (use TypeScript `private`)
+- [ ] No `const enum` (use plain `enum`)
+- [ ] No wrapper object instantiation (`new String()`, etc.)
+- [ ] No `eval` or `Function(...string)` constructor
+- [ ] `import type {Foo}` used for type-only imports
+- [ ] All public API symbols have JSDoc `/** */` comments
+- [ ] Error handling uses `catch (e: unknown)` with `instanceof Error` narrowing
+- [ ] `throw new Error(...)` — no throwing strings or plain objects
+- [ ] Type assertions use `as Foo` not `<Foo>`
+- [ ] Double assertions use `unknown` as intermediate, not `any`
+- [ ] Acronyms treated as words in identifiers (`httpUrl` not `HTTPUrl`)
+- [ ] No `I` prefix on interfaces
+- [ ] No `_` prefix/suffix for private members
+- [ ] `CONSTANT_CASE` only for module-level constants; local constants use `lowerCamelCase`
+- [ ] `for...of` used to iterate arrays (not `for...in` or index loop)
+- [ ] `Object.entries()`/`Object.keys()`/`Object.values()` used instead of `for...in` on objects
+- [ ] `interface` used for structural types; `class` not used for pure data shapes
+- [ ] Optional `?` preferred over explicit `|undefined` for params/fields
+- [ ] No `debugger` statements in committed code

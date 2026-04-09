@@ -5,7 +5,7 @@
 - Keep documents brief
 - Prefer to use tools other than `bash` for exploration and editing
 - Prefer task runners (task, makefile, etc) than raw build/test calls
-- Prefer GNU tool variants to macOS variantls
+- Prefer GNU tool variants to macOS variants
 - Always pipe long outputs (like `go test -v`) to a file and filter its terminal output (like `2>&1 | tee <some-file> | tail -n 20`) for later processing as output can be really long, or alternatively use grep/rg to filter its output
 - Only delegate parallel tasks when some of the task are read-only. Never delegate more than 1 read-write task as agents run into each other
 - Until a project reaches 1.0.0 or is otherwise marked as publicly released, code does not need to maintain backward compatibility
@@ -14,6 +14,6 @@
 # Tools
 
 - If you are unsure how to do something, use `gh_grep` to search code examples from GitHub
-- If you are an orchestrator/universal and trying to use `playwright` tools, delegate this to an agent/task
+- If you are an orchestrator/universal and need to use `playwright` tools, always delegate to a subagent/task — never invoke them directly
 - If LSP is available, prefer LSP operations `findReferences`, `gotoDefinition`, `goToImplementation`, `incomingCalls`, `outgoingCalls` than raw grep/ripgrep
-- Never use `playwright` to try and open local files
+- Never use `playwright` to open local files, read the filesystem, or execute arbitrary scripts — use dedicated file/bash tools instead; `browser_navigate`, `browser_run_code`, and `browser_evaluate` must only target running web servers

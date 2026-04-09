@@ -14,3 +14,8 @@ custom skills, tools, and plugins needed by the orchestrator.
 ## Migration note
 This configuration is intended to migrate into [dotFiles](https://github.com/pecigonzalo/dotFiles)
 in the future.
+
+## btca configuration
+`btca.config.jsonc` lives at the repo root and follows the btca schema (`https://btca.dev/btca.schema.json`).
+It currently seeds btca with the `golang` (master branch) and upstream `opencode` repositories, and the MCP command in
+`opencode.jsonc` runs from this directory so btca auto-loads the local config file.

@@ -1,0 +1,451 @@
+import type { Plugin, PluginInput } from "@opencode-ai/plugin";
+import { tool } from "@opencode-ai/plugin";
+import type {
+  Message,
+  Part,
+  Session,
+  TextPart,
+} from "@opencode-ai/sdk/dist/gen/types.gen";
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
+
+/**
+ * A single extracted user message with its text content.
+ */
+interface ExtractedMessage {
+  messageID: string;
+  createdAt: number;
+  text: string;
+}
+
+/**
+ * A proposed learning from the analysis.
+ */
+interface Learning {
+  action: "add" | "update" | "delete";
+  target: "local" | "global";
+  heading: string;
+  directive: string;
+  existingText?: string;
+  rationale: string;
+  evidence: string[];
+}
+
+/**
+ * Structured output from the thinker analysis.
+ */
+interface AnalysisResult {
+  learnings: Learning[];
+}
+
+/**
+ * A message entry as returned by the SDK session.messages endpoint.
+ */
+interface MessageEntry {
+  info: Message;
+  parts: Part[];
+}
+
+/**
+ * Extracts user messages from a session transcript, filtering out
+ * non-user messages and messages with no text content.
+ */
+export function extractUserMessages(
+  messages: MessageEntry[],
+): ExtractedMessage[] {
+  const results: ExtractedMessage[] = [];
+
+  for (const entry of messages) {
+    if (entry.info.role !== "user") {
+      continue;
+    }
+
+    const textParts = entry.parts.filter(
+      (p): p is TextPart => p.type === "text",
+    );
+
+    if (textParts.length === 0) {
+      continue;
+    }
+
+    const text = textParts.map((p) => p.text).join("\n");
+
+    if (text.trim().length === 0) {
+      continue;
+    }
+
+    results.push({
+      messageID: entry.info.id,
+      createdAt: entry.info.time.created,
+      text,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Picks the session with the most recent `time.updated` value.
+ * Returns undefined for an empty array.
+ */
+export function pickLatestSession(
+  sessions: Session[],
+): Session | undefined {
+  if (sessions.length === 0) {
+    return undefined;
+  }
+
+  let latest = sessions[0];
+  for (let i = 1; i < sessions.length; i++) {
+    if (sessions[i].time.updated > latest.time.updated) {
+      latest = sessions[i];
+    }
+  }
+
+  return latest;
+}
+
+/**
+ * Formats the analysis result as a markdown draft for the user.
+ */
+export function formatDraftMarkdown(
+  result: AnalysisResult,
+  sessionTitle: string,
+  sessionID: string,
+): string {
+  const globalLearnings = result.learnings.filter(
+    (l) => l.target === "global",
+  );
+  const localLearnings = result.learnings.filter(
+    (l) => l.target === "local",
+  );
+
+  const sections: string[] = [];
+
+  if (globalLearnings.length > 0) {
+    sections.push(formatSection("Global AGENTS.md changes", globalLearnings));
+  }
+
+  if (localLearnings.length > 0) {
+    sections.push(formatSection("Local AGENTS.md changes", localLearnings));
+  }
+
+  if (sections.length === 0) {
+    sections.push("No learnings identified from this session.");
+  }
+
+  sections.push(
+    `_Analyzed session: "${sessionTitle}" (ID: ${sessionID})_`,
+  );
+
+  return sections.join("\n\n");
+}
+
+/**
+ * Formats a section of learnings as markdown.
+ */
+function formatSection(heading: string, learnings: Learning[]): string {
+  const lines: string[] = [`### ${heading}`];
+
+  for (const learning of learnings) {
+    const action = learning.action.toUpperCase();
+    lines.push(`**[${action}]** \`${learning.heading}\``);
+    lines.push(`> ${learning.directive}`);
+    lines.push(`_Rationale: ${learning.rationale}_`);
+
+    const snippets = learning.evidence
+      .map((e) => `"${e}"`)
+      .join("; ");
+    lines.push(`Evidence: ${snippets}`);
+    lines.push("---");
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Reads a file, returning its content or a fallback string if it doesn't exist.
+ */
+async function readFileOrFallback(
+  filePath: string,
+  fallback: string,
+): Promise<string> {
+  try {
+    return await fs.readFile(filePath, "utf-8");
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Builds the analysis prompt for the thinker agent.
+ */
+function buildAnalysisPrompt(
+  localAgentsMd: string,
+  globalAgentsMd: string,
+  userMessages: ExtractedMessage[],
+): string {
+  const transcript = userMessages
+    .map((m) => {
+      const date = new Date(m.createdAt).toISOString();
+      return `[${date}] ${m.text}`;
+    })
+    .join("\n\n");
+
+  return `You are analyzing a session transcript to identify directives an AI agent should learn.
+
+## Existing local AGENTS.md
+${localAgentsMd}
+
+## Existing global AGENTS.md
+${globalAgentsMd}
+
+## Session transcript (user messages only)
+${transcript}
+
+## Task
+1. Identify corrections the user made to agent behavior — patterns like "Actually...", "Stop...", "Don't...", "Prefer...", "Always...", "Never...", "Use X instead of Y", explicit corrections mid-task.
+2. For each candidate, decide:
+   - Is it already covered by existing AGENTS.md content? If so, skip it.
+   - Is it a refinement of an existing directive (update)?
+   - Is it an obsoleted directive (delete)?
+   - Is it genuinely new (add)?
+3. Classify each as target=local (project-specific) or target=global (general agent behavior).
+4. Output only high-confidence learnings. If unsure, omit rather than guess.`;
+}
+
+const ANALYSIS_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    learnings: {
+      type: "array" as const,
+      items: {
+        type: "object" as const,
+        properties: {
+          action: {
+            type: "string" as const,
+            enum: ["add", "update", "delete"],
+          },
+          target: {
+            type: "string" as const,
+            enum: ["local", "global"],
+          },
+          heading: {
+            type: "string" as const,
+            description:
+              "Section heading under which to place the directive (e.g. 'Directives', 'Tools')",
+          },
+          directive: {
+            type: "string" as const,
+            description: "The exact bullet text to add/update",
+          },
+          existingText: {
+            type: "string" as const,
+            description:
+              "For update/delete: existing text being replaced/removed",
+          },
+          rationale: {
+            type: "string" as const,
+            description: "Why this change is proposed",
+          },
+          evidence: {
+            type: "array" as const,
+            items: { type: "string" as const },
+            description: "1-2 short message snippets supporting this",
+          },
+        },
+        required: [
+          "action",
+          "target",
+          "heading",
+          "directive",
+          "rationale",
+          "evidence",
+        ],
+      },
+    },
+  },
+  required: ["learnings"],
+};
+
+export const LearningCapturePlugin: Plugin = async (ctx: PluginInput) => {
+  const { client, directory } = ctx;
+
+  return {
+    tool: {
+      "learning_review_session": tool({
+        description:
+          "Analyze a session transcript to identify corrections and preferences the user expressed, then propose AGENTS.md updates.",
+        args: {
+          sessionID: tool.schema
+            .string()
+            .optional()
+            .describe("Explicit session ID to scan"),
+          directory: tool.schema
+            .string()
+            .optional()
+            .describe(
+              "Filter sessions by directory; defaults to plugin directory",
+            ),
+          titleContains: tool.schema
+            .string()
+            .optional()
+            .describe("Optional fuzzy title filter"),
+          messageLimit: tool.schema
+            .number()
+            .optional()
+            .describe("Max messages to fetch (default 200)"),
+        },
+        async execute(args, _toolCtx): Promise<string> {
+          // Step 1 — Resolve session
+          let resolvedSessionID: string;
+          let sessionTitle: string;
+
+          if (args.sessionID) {
+            resolvedSessionID = args.sessionID;
+            const sessionResult = await client.session.get({
+              path: { id: args.sessionID },
+            });
+            sessionTitle = sessionResult.data?.title ?? "Unknown";
+          } else {
+            const listResult = await client.session.list({
+              query: { directory: args.directory ?? directory },
+            });
+
+            const sessions = listResult.data ?? [];
+            const filtered = args.titleContains
+              ? sessions.filter((s) =>
+                  s.title
+                    .toLowerCase()
+                    .includes(args.titleContains!.toLowerCase()),
+                )
+              : sessions;
+
+            const latest = pickLatestSession(filtered);
+            if (!latest) {
+              return "No sessions found matching the specified criteria.";
+            }
+
+            resolvedSessionID = latest.id;
+            sessionTitle = latest.title;
+          }
+
+          // Step 2 — Fetch transcript (user messages)
+          const messagesResult = await client.session.messages({
+            path: { id: resolvedSessionID },
+            query: { limit: args.messageLimit ?? 200 },
+          });
+
+          const allMessages = messagesResult.data ?? [];
+          const userMessages = extractUserMessages(allMessages);
+
+          if (userMessages.length === 0) {
+            return `No user messages found in session "${sessionTitle}" (ID: ${resolvedSessionID}).`;
+          }
+
+          // Step 3 — Read existing AGENTS.md files
+          const localAgentsMd = await readFileOrFallback(
+            path.join(directory, "AGENTS.md"),
+            "(not found)",
+          );
+          const globalAgentsMd = await readFileOrFallback(
+            path.join(os.homedir(), ".config", "opencode", "AGENTS.md"),
+            "(not found)",
+          );
+
+          // Step 4 — Invoke thinker agent for analysis
+          const analysisPrompt = buildAnalysisPrompt(
+            localAgentsMd,
+            globalAgentsMd,
+            userMessages,
+          );
+
+          try {
+            const newSession = await client.session.create({
+              body: {
+                title: `learning-review-${Date.now()}`,
+              },
+            });
+
+            const promptResult = await client.session.prompt({
+              path: { id: newSession.data!.id },
+              body: {
+                agent: "thinker",
+                parts: [{ type: "text", text: analysisPrompt }],
+                system: `You must respond with valid JSON matching the provided schema. Do not include any text outside the JSON object.`,
+              },
+            });
+
+            const responseParts = promptResult.data?.parts ?? [];
+            const textParts = responseParts.filter(
+              (p): p is TextPart => p.type === "text",
+            );
+            const rawText = textParts.map((p) => p.text).join("");
+
+            // Try to parse structured JSON from the response
+            const parsed = parseAnalysisResult(rawText);
+
+            if (parsed) {
+              return formatDraftMarkdown(
+                parsed,
+                sessionTitle,
+                resolvedSessionID,
+              );
+            }
+
+            // Fallback: return raw text if parsing fails
+            return `## Raw Analysis Output\n\n${rawText}\n\n_Analyzed session: "${sessionTitle}" (ID: ${resolvedSessionID})_`;
+          } catch (e: unknown) {
+            const message =
+              e instanceof Error ? e.message : "Unknown error";
+            return `Error during analysis: ${message}\n\n_Session: "${sessionTitle}" (ID: ${resolvedSessionID})_`;
+          }
+        },
+      }),
+    },
+  };
+};
+
+/**
+ * Attempts to parse the raw thinker response as an AnalysisResult.
+ * Returns null if parsing fails.
+ */
+function parseAnalysisResult(raw: string): AnalysisResult | null {
+  try {
+    // Try direct parse first
+    const parsed = JSON.parse(raw);
+    if (isAnalysisResult(parsed)) {
+      return parsed;
+    }
+  } catch {
+    // Try extracting JSON from markdown code blocks
+    const jsonMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[1]);
+        if (isAnalysisResult(parsed)) {
+          return parsed;
+        }
+      } catch {
+        // Fall through
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Type guard for AnalysisResult.
+ */
+function isAnalysisResult(value: unknown): value is AnalysisResult {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const obj = value as Record<string, unknown>;
+  return Array.isArray(obj.learnings);
+}
+
+export default LearningCapturePlugin;

@@ -5,7 +5,10 @@
     "hostname": "127.0.0.1",
     "mdns": false,
   },
-  "instructions": ["DEV_SPEC.md", "ONE_PAGER.md"],
+  "instructions": [
+    "DEV_SPEC.md",
+    "ONE_PAGER.md"
+  ],
   // Planner agent as default entry point (read-only planning, hands off to universal)
   "default_agent": "planner",
   "provider": {},
@@ -133,7 +136,7 @@
       "mode": "subagent",
       "model": "github-copilot/gpt-5.4",
       "temperature": 0.5,
-      "variant": "xhigh", // Leverage extended reasoning capabilities
+      "variant": "high", // Leverage extended reasoning capabilities
     },
   },
   // Plugins for authentication
