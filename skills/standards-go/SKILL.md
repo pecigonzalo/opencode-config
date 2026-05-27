@@ -1,8 +1,6 @@
 ---
 name: standards-go
 description: MUST load when writing or reviewing Go code; SHOULD load for Go architectural or API design decisions. Provides idiomatic Go patterns, error handling, resource management, generics, and design pattern guidance.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: go
@@ -11,9 +9,7 @@ metadata:
 
 # Go Standards
 
-**Provides:** Idiomatic Go patterns, error handling, resource management,
-naming/package conventions, API/type design, and lightweight Go-specific pattern
-guidance. For concurrency, testing, and performance, load dedicated subskills.
+**Provides:** Idiomatic Go patterns, error handling, resource management, naming/package conventions, API/type design, and lightweight Go-specific pattern guidance. For concurrency, testing, and performance, load dedicated subskills.
 
 **Primary references:**
 
@@ -39,15 +35,13 @@ guidance. For concurrency, testing, and performance, load dedicated subskills.
 **Do**:
 
 - Run `gofmt`/`goimports` on every save
-- Use MixedCaps for identifiers; avoid underscores (except test names and rare
-  low-level interop)
+- Use MixedCaps for identifiers; avoid underscores (except test names and rare low-level interop)
 - Return `error` last; wrap with `%w`; check with `errors.Is`/`errors.As` (1.13+)
 - `defer` release immediately after acquisition
 - Pass `context.Context` as the first argument to blocking calls
 - Accept interfaces, return concrete types
 - Design zero values to be usable
-- Prefer standard helpers available in your Go version (`slices`, `maps`,
-  `cmp`, `min`/`max`)
+- Prefer standard helpers available in your Go version (`slices`, `maps`, `cmp`, `min`/`max`)
 - Use `any` instead of `interface{}` when unconstrained (1.18+)
 
 **Don't**:
@@ -80,10 +74,8 @@ go mod tidy          # when deps changed
 - Use `goimports` (or `gofmt`) on save; CI should reject unformatted files.
 - Use `go vet ./...` in CI.
 - Use `golangci-lint` as the unified linter runner when configured.
-- Keep `//go:generate` deterministic; track generator tool dependencies via
-  `tools.go` + `//go:build tools` when needed.
-- Keep import groups simple: stdlib, external, internal (enforced by
-  `goimports`).
+- Keep `//go:generate` deterministic; track generator tool dependencies via `tools.go` + `//go:build tools` when needed.
+- Keep import groups simple: stdlib, external, internal (enforced by `goimports`).
 - Restrict blank imports (`_`) to real side-effect registration use cases.
 
 ## Code Style
@@ -100,9 +92,7 @@ When multiple styles are acceptable and no rule applies, match the style of the 
 
 Prefer the simplest tool that works:
 
-1) core language constructs (struct/slice/map/channel)
-2) standard library
-3) well-adopted libraries
+1) core language constructs (struct/slice/map/channel) 2) standard library 3) well-adopted libraries
 
 Add dependencies and abstraction only when they clearly improve correctness, simplicity at call sites, or performance.
 
@@ -143,8 +133,7 @@ Use raw string literals (backticks) to avoid hand-escaped strings: `` `unknown e
 
 ### Initialisms and Acronyms
 
-Initialisms (URL, ID, HTTP, etc.) must be cased uniformly: `ParseURL`,
-`HTTPClient`, `userID`. Avoid mixed forms like `userId` or `ParseUrl`.
+Initialisms (URL, ID, HTTP, etc.) must be cased uniformly: `ParseURL`, `HTTPClient`, `userID`. Avoid mixed forms like `userId` or `ParseUrl`.
 
 ### Avoid Predeclared Names
 
@@ -206,10 +195,8 @@ func (s *Stats) Snapshot() map[string]int { return maps.Clone(s.counters) }
 
 ### Type Safety Pitfalls
 
-- Avoid `String()` recursion traps (`fmt.Sprintf("%s", receiver)` inside
-  `String()`). Convert to underlying type first.
-- Do not copy values containing sync primitives or pointer-receiver semantics.
-  Pass pointers instead.
+- Avoid `String()` recursion traps (`fmt.Sprintf("%s", receiver)` inside `String()`). Convert to underlying type first.
+- Do not copy values containing sync primitives or pointer-receiver semantics. Pass pointers instead.
 
 ### Enum / Iota Values
 
@@ -256,8 +243,7 @@ Never use `math/rand` (or `math/rand/v2`) for keys, tokens, session IDs, or secu
 
 Use functional options when a constructor or public API has **3+ independent optional parameters** or when the API is expected to grow new options over time. Prefer a plain config struct when options are few, all usually specified together, or the API is internal-only.
 
-Prefer the package-owned option pattern (`Option` with unexported `apply`) for
-public APIs. Closure-based options are acceptable for package-internal APIs.
+Prefer the package-owned option pattern (`Option` with unexported `apply`) for public APIs. Closure-based options are acceptable for package-internal APIs.
 
 ```go
 type options struct {
@@ -334,10 +320,8 @@ Go favors **composition over inheritance**. Embedding promotes methods to the ou
 ### Go-specific pattern guidance
 
 - Prefer functional options over builders for most Go APIs.
-- Use strategy via small interfaces (often single-method) instead of inheritance
-  hierarchies.
-- Use channels for high-throughput event fan-out; use observer-style registries
-  only when dynamic subscriber lifecycle is required.
+- Use strategy via small interfaces (often single-method) instead of inheritance hierarchies.
+- Use channels for high-throughput event fan-out; use observer-style registries only when dynamic subscriber lifecycle is required.
 - For broader pattern selection and trade-offs, also load `role-architect`.
 
 ## Project Structure
@@ -365,19 +349,16 @@ testdata/            # Test fixtures; ignored by go build
 ### Build constraints and workspaces
 
 - Use `//go:build` syntax (not legacy `// +build`).
-- Use `go work` in multi-module repos when local cross-module iteration is
-  needed; avoid committing `go.work` when modules are independently versioned.
+- Use `go work` in multi-module repos when local cross-module iteration is needed; avoid committing `go.work` when modules are independently versioned.
 
 ## Error Handling
 
 - Return `error` as the last return value. Never discard with `_` without an explanatory comment.
 - Wrap errors for context: `fmt.Errorf("open config: %w", err)`. Use `%w` (not `%v`) so callers can unwrap.
-- Check wrapped errors with `errors.Is` and `errors.As` (or `errors.AsType` if
-  available in your project Go version).
+- Check wrapped errors with `errors.Is` and `errors.As` (or `errors.AsType` if available in your project Go version).
 - Sentinel errors: declare as package-level vars — `var ErrFoo = errors.New("foo")` — so callers can match without string comparison.
 - Combine multiple errors with `errors.Join(err1, err2)` (1.20+) instead of manual concatenation.
-- **Custom error types**: define struct types when callers need structured
-  fields; unwrap with `errors.As`.
+- **Custom error types**: define struct types when callers need structured fields; unwrap with `errors.As`.
 - `panic` is program-fatal. Use `recover` only at package or handler boundaries (e.g., HTTP middleware). Never use panic/recover as a substitute for returning errors.
 
 ### Return the `error` Interface, Not a Concrete Type
@@ -480,21 +461,18 @@ func RequestID(ctx context.Context) (string, bool) {
 
 ## Generics (1.18+)
 
-Use generics to remove true type-parameterized duplication; do not reach for
-them by default.
+Use generics to remove true type-parameterized duplication; do not reach for them by default.
 
 - Prefer concrete types and small interfaces first.
 - Use minimal constraints (`any`, `comparable`, or narrow union constraints).
-- Avoid generic data structures unless they provide clear ergonomic or
-  correctness benefits beyond stdlib helpers.
+- Avoid generic data structures unless they provide clear ergonomic or correctness benefits beyond stdlib helpers.
 - Do not use `any` where an interface better expresses behavior.
 
 ---
 
 ## Modern Go by Version
 
-Check project Go version first (`go.mod`). Prefer modern stdlib functionality
-available in that version.
+Check project Go version first (`go.mod`). Prefer modern stdlib functionality available in that version.
 
 High-value defaults to prefer when available:
 
@@ -505,18 +483,13 @@ High-value defaults to prefer when available:
 
 High-value examples often **not** auto-fixed by `modernize`:
 
-- API boundaries: use `slices.Clone` / `maps.Clone` to avoid aliasing mutable
-  caller state.
-- HTTP routing: use method-aware `http.ServeMux` patterns and `r.PathValue`
-  where supported.
-- Cancellation semantics: prefer `context.WithTimeoutCause` /
-  `context.WithDeadlineCause` when error attribution matters.
-- Tests/benchmarks: use `t.Context()` and `b.Loop()` when your Go version
-  supports them.
+- API boundaries: use `slices.Clone` / `maps.Clone` to avoid aliasing mutable caller state.
+- HTTP routing: use method-aware `http.ServeMux` patterns and `r.PathValue` where supported.
+- Cancellation semantics: prefer `context.WithTimeoutCause` / `context.WithDeadlineCause` when error attribution matters.
+- Tests/benchmarks: use `t.Context()` and `b.Loop()` when your Go version supports them.
 - WaitGroup ergonomics: prefer `wg.Go(fn)` in newer Go versions.
 
-When uncertain about version behavior, verify with official
-[Go release notes](https://go.dev/doc/devel/release).
+When uncertain about version behavior, verify with official [Go release notes](https://go.dev/doc/devel/release).
 
 ---
 
@@ -535,8 +508,7 @@ When uncertain about version behavior, verify with official
 
 ## Verification Checklist
 
-- [ ] No formatting/lint/vet failures (prefer repo task runner; use
-  `golangci-lint` when configured)
+- [ ] No formatting/lint/vet failures (prefer repo task runner; use `golangci-lint` when configured)
 - [ ] Required tests pass
 - [ ] Concurrency changes were race-checked when goroutines/sync were touched
 - [ ] Dependency metadata is clean when dependencies changed

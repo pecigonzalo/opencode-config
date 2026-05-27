@@ -1,21 +1,16 @@
 ---
 name: tool-store
 description: MUST load for storing/retrieving extended repository context, plans, notes, or `[store:id]` references.
-license: MIT
-compatibility: opencode
 metadata:
   role: storage
   focus: persistent-memory
 ---
 
-**CRITICAL:** Store items are **not** auto-loaded. When you see
-`Load store: <id>` or `[store:<id>]`, call `storeread({ id: "<id>" })`
-before proceeding.
+**CRITICAL:** Store items are **not** auto-loaded. When you see `Load store: <id>` or `[store:<id>]`, call `storeread({ id: "<id>" })` before proceeding.
 
 ## What belongs in the store
 
-Use the store for **extended repository context** that should survive session
-cleanup or compaction.
+Use the store for **extended repository context** that should survive session cleanup or compaction.
 
 Good fits:
 
@@ -34,8 +29,7 @@ Avoid storing:
 
 ## What you can store
 
-The `data` field can hold either short structured content or longer free-form
-content.
+The `data` field can hold either short structured content or longer free-form content.
 
 ### Short structured data
 
@@ -87,8 +81,7 @@ storewrite({
 
 ### `storewrite`
 
-Create a new store item. IDs are generated internally (12-char lowercase hex).
-Every call creates a new item — it never updates an existing one.
+Create a new store item. IDs are generated internally (12-char lowercase hex). Every call creates a new item — it never updates an existing one.
 
 **Parameters:**
 
@@ -114,8 +107,7 @@ storewrite({
 
 ### `storepatch`
 
-Update an existing store item by ID. Only the fields you provide are changed;
-omitted fields are preserved. Returns `found: false` when the ID does not exist.
+Update an existing store item by ID. Only the fields you provide are changed; omitted fields are preserved. Returns `found: false` when the ID does not exist.
 
 **Parameters:**
 
@@ -126,8 +118,7 @@ omitted fields are preserved. Returns `found: false` when the ID does not exist.
 - `data` (optional): New data payload (replaces existing)
 - `links` (optional): New links array
 
-**Use for:** Changing status, updating tags, amending notes, or replacing data
-on an existing item.
+**Use for:** Changing status, updating tags, amending notes, or replacing data on an existing item.
 
 Archive an item:
 
@@ -172,9 +163,7 @@ storeread({ id: "auth-spec-1" });
 
 Permanently remove a store item.
 
-Use sparingly. Prefer `storepatch({ id, status: "archived" })` or
-`storepatch({ id, status: "deprecated" })` when historical context may still
-matter.
+Use sparingly. Prefer `storepatch({ id, status: "archived" })` or `storepatch({ id, status: "deprecated" })` when historical context may still matter.
 
 ```javascript
 storedelete({ id: "obsolete-note-1" });
@@ -187,13 +176,11 @@ storedelete({ id: "obsolete-note-1" });
 - Store enough context to make the item useful later
 - Use `links` for related or dependent items
 - Prefer archive/deprecate over delete
-- Review existing items first when you are unsure:
-  `storeread()`
+- Review existing items first when you are unsure: `storeread()`
 
 ## TODO linking
 
-When a TODO or prompt needs durable backing context, reference the item with
-`[store:id]` and load it explicitly with `storeread`.
+When a TODO or prompt needs durable backing context, reference the item with `[store:id]` and load it explicitly with `storeread`.
 
 Example:
 

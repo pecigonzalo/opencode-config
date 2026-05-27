@@ -1,8 +1,6 @@
 ---
 name: standards-observability
 description: MUST load for logging, metrics, error tracking, or performance monitoring; SHOULD load for debugging strategies or system health design. Provides structured logging, telemetry, and visibility checklists.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: observability
@@ -15,8 +13,7 @@ metadata:
 
 ## Quick reference
 
-**Core philosophy**: Observable, debuggable, measurable
-**Golden rule**: If you can't see it in production, you can't fix it
+**Core philosophy**: Observable, debuggable, measurable **Golden rule**: If you can't see it in production, you can't fix it
 
 **Critical patterns** (use these):
 

@@ -1,8 +1,6 @@
 ---
 name: standards-database
 description: MUST load when designing or reviewing database schemas, migrations, indexes, queries, transactions, constraints, backfills, data retention, or data integrity changes.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: database
@@ -43,8 +41,7 @@ Prefer expand/contract for live systems:
 4. Switch reads/writes.
 5. Remove old structures in a later change.
 
-Avoid long locks, unbounded backfills, and irreversible destructive changes without
-explicit approval.
+Avoid long locks, unbounded backfills, and irreversible destructive changes without explicit approval.
 
 ## Query and Index Review
 
@@ -54,15 +51,17 @@ explicit approval.
 - Keep transactions short; do not hold locks across network calls.
 - Treat time zones, money, and precision as schema-level concerns.
 
-## Checklist
+## Validation
 
-- [ ] Constraints protect required invariants.
-- [ ] Migration can run safely in the target environment.
-- [ ] Backfill is bounded, resumable, and verifiable when needed.
-- [ ] Indexes match real read/write paths and do not duplicate existing ones.
-- [ ] Transactions handle concurrency and failure cases.
-- [ ] Rollback or forward-fix plan is clear.
-- [ ] Tests cover constraints, migration behavior, and representative queries.
+Before finalizing database work:
+
+- Constraints protect required invariants.
+- Migration can run safely in the target environment.
+- Backfill is bounded, resumable, and verifiable when needed.
+- Indexes match real read/write paths and do not duplicate existing ones.
+- Transactions handle concurrency and failure cases.
+- Rollback or forward-fix plan is clear.
+- Tests cover constraints, migration behavior, and representative queries.
 
 ## Skill Links
 

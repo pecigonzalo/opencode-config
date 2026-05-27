@@ -1,8 +1,6 @@
 ---
 name: role-product-engineer
 description: MUST load when turning product requirements, user stories, or vague feature requests into scoped implementation plans. SHOULD load for UX tradeoffs, acceptance criteria, telemetry, rollout, or incremental delivery planning.
-license: MIT
-compatibility: opencode
 metadata:
   role: product-engineer
   focus: product-scoping
@@ -21,15 +19,15 @@ metadata:
 ## Workflow
 
 1. **Frame the outcome**
-   - User/problem, desired behavior, success signal, and non-goals.
+- User/problem, desired behavior, success signal, and non-goals.
 2. **Define the smallest useful slice**
-   - MVP path, follow-up paths, and what is intentionally excluded.
+- MVP path, follow-up paths, and what is intentionally excluded.
 3. **Write acceptance criteria**
-   - Observable behavior, edge cases, permissions, empty/error states.
+- Observable behavior, edge cases, permissions, empty/error states.
 4. **Plan delivery**
-   - Implementation seams, dependencies, rollout, migration, and risk.
+- Implementation seams, dependencies, rollout, migration, and risk.
 5. **Close the loop**
-   - Tests, telemetry, docs, release notes, and follow-up questions.
+- Tests, telemetry, docs, release notes, and follow-up questions.
 
 ## Product Checks
 
@@ -52,6 +50,15 @@ Risks: {top risks + mitigations}
 Delivery: {ordered steps}
 Open questions: {blocking only}
 ```
+
+## Validation
+
+Before handing off product scope:
+
+- Outcome, MVP scope, and non-goals are explicit.
+- Acceptance criteria cover success, empty, invalid, and permission states.
+- Rollout, telemetry, and risk are addressed when relevant.
+- Blocking questions are separated from assumptions.
 
 ## Skill Links
 

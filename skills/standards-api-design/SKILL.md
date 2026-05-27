@@ -1,8 +1,6 @@
 ---
 name: standards-api-design
 description: MUST load when designing or reviewing APIs, including REST, GraphQL, RPC, webhooks, SDK interfaces, public contracts, error models, pagination, idempotency, versioning, and backward compatibility.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: api-design
@@ -44,16 +42,17 @@ Before implementation, decide:
 - Return enough context to debug, but never expose secrets or internals.
 - For webhooks/events, include event IDs, timestamps, schema version, and replay strategy.
 
-## Review Checklist
+## Validation
 
-- [ ] Contract matches user workflows, not database tables by default.
-- [ ] Authz is defined per operation and tenant boundary.
-- [ ] Input validation and error responses are consistent.
-- [ ] Pagination/filtering/sorting semantics are documented.
-- [ ] Idempotency and retry behavior are clear for mutations.
-- [ ] Breaking-change risk and versioning path are addressed.
-- [ ] Observability includes request IDs, key dimensions, and safe logs.
-- [ ] Tests cover success, validation, authz, conflict, and retry cases.
+Before finalizing API work:
+
+- Contract matches user workflows, not database tables by default.
+- Authz is defined per operation and tenant boundary.
+- Input validation and error responses are consistent.
+- Pagination/filtering/sorting semantics are documented.
+- Idempotency and retry behavior are clear for mutations.
+- Breaking-change risk and versioning path are addressed.
+- Tests cover success, validation, authz, conflict, and retry cases.
 
 ## Skill Links
 

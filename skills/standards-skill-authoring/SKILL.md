@@ -1,8 +1,6 @@
 ---
 name: standards-skill-authoring
 description: MUST load when creating, modifying, reviewing, or evaluating AI Agent Skills/SKILL.md files; SHOULD load when optimizing skill descriptions, designing skill evals, packaging skills, or converting a repeated workflow into a reusable skill. Provides Agent Skills spec rules, Pi/OpenCode compatibility guidance, progressive-disclosure structure, authoring workflow, validation checklist, and cross-client portability notes.
-license: MIT
-compatibility: pi, opencode, and Agent Skills-compatible clients
 metadata:
   role: standards
   domain: skill-authoring
@@ -10,16 +8,15 @@ metadata:
 
 # Skill Authoring Standards
 
-Use this skill to create, improve, review, or evaluate AI Agent Skills. A good
-skill captures reusable expertise that an agent would otherwise need to
-rediscover or be reminded of repeatedly.
+Scope: reusable agent expertise captured as compact, triggerable skill packages.
 
 ## Quick reference
 
-- Create skills for repeatable workflows, domain expertise, fragile procedures,
-  or task-specific tools and resources.
+- Create skills for repeatable workflows, domain expertise, fragile procedures, or task-specific tools and resources.
 - Keep `SKILL.md` focused; move conditional detail to `references/`.
 - Put trigger guidance in `description`; the body loads only after activation.
+- Do not start the body by repeating when to load the skill; state scope, application boundaries, or execution rules instead.
+- Do not hard-wrap prose in the middle of sentences; keep compact paragraphs on one line unless Markdown structure requires a break.
 - Prefer the strict portable subset unless the user targets one client.
 - Include concrete examples, gotchas, validation loops, and safe defaults.
 - Avoid generic advice the model already knows.
@@ -44,8 +41,7 @@ Do not create a skill when:
 
 ## Portable structure
 
-Use this baseline for skills that should work across Pi, OpenCode, Codex,
-Claude Code, Gemini CLI, VS Code, GitHub Copilot, and Goose:
+Portable structure for skills that should work across Pi, OpenCode, Codex, Claude Code, Gemini CLI, VS Code, GitHub Copilot, and Goose:
 
 ```text
 skill-name/
@@ -68,13 +64,11 @@ Use resource directories intentionally:
 - `references/`: detailed docs loaded only when relevant.
 - `assets/`: templates or files used to produce outputs.
 
-Do not add auxiliary docs such as `README.md`, `CHANGELOG.md`,
-`INSTALLATION_GUIDE.md`, or `QUICK_REFERENCE.md` unless the user asks. A skill
-package should contain only what helps another agent do the task.
+Do not add auxiliary docs such as `README.md`, `CHANGELOG.md`, `INSTALLATION_GUIDE.md`, or `QUICK_REFERENCE.md` unless the user asks. A skill package should contain only what helps another agent do the task.
 
 ## Frontmatter
 
-Use this portable baseline:
+Portable frontmatter baseline:
 
 ```yaml
 ---
@@ -83,15 +77,15 @@ description: Clear description of what the skill does and when to use it.
 ---
 ```
 
-Recommended optional fields for Pi/OpenCode-compatible skills:
+Keep frontmatter minimal. Add optional fields like `metadata` only when they help discovery or maintenance. Keep long descriptions on one line unless YAML syntax requires otherwise:
 
 ```yaml
-license: MIT
-compatibility: pi, opencode, and Agent Skills-compatible clients
 metadata:
   role: standards
   domain: example-domain
 ```
+
+Omit `license` and `compatibility` unless the user explicitly wants package metadata; they rarely affect agent behavior.
 
 Name rules:
 
@@ -102,16 +96,13 @@ Name rules:
 - Prefer matching the directory name, even when a client is lenient.
 - Prefer short verb-led or domain-led names.
 
-Good names: `code-review`, `gh-address-comments`,
-`standards-skill-authoring`, `terraform-module-review`.
+Good names: `code-review`, `gh-address-comments`, `standards-skill-authoring`, `terraform-module-review`.
 
-Bad names: `CodeReview`, `-code-review`, `code--review`,
-`company/internal/review`.
+Bad names: `CodeReview`, `-code-review`, `code--review`, `company/internal/review`.
 
 ## Description writing
 
-The `description` field is the primary trigger mechanism. Write it as an
-instruction to the agent, not as marketing copy.
+The `description` field is the primary trigger mechanism. Write it as an instruction to the agent, not as marketing copy.
 
 A good description includes:
 
@@ -132,9 +123,9 @@ Avoid vague descriptions:
 description: Helps write skills.
 ```
 
-Keep all trigger information in the description. A body section named
-"When to use this skill" is less useful because the agent will not see it until
-after the skill has already triggered.
+Keep all trigger information in the description. A body section named "When to use this skill" is less useful because the agent will not see it until after the skill has already triggered.
+
+In the body, avoid openers like "Use this skill when..." if they only repeat the description. Prefer `Scope:`, `Apply this as:`, or immediate workflow steps that explain how to use the loaded content.
 
 ## Authoring workflow
 
@@ -148,10 +139,7 @@ Start from concrete use cases. Ask only the highest-value questions first:
 - What corrections has the user repeated before?
 - Does the task need scripts, references, or assets?
 
-If extracting a skill from an existing conversation, use the conversation as
-source material before asking for more details. Look for steps that worked,
-user corrections, input/output formats, tools, commands, APIs, file paths,
-gotchas, and verification steps.
+If extracting a skill from an existing conversation, use the conversation as source material before asking for more details. Look for steps that worked, user corrections, input/output formats, tools, commands, APIs, file paths, gotchas, and verification steps.
 
 ### 2. Choose the scope
 
@@ -163,8 +151,7 @@ Good scope:
 - `billing-query-analysis`: answer billing questions using known schemas.
 - `run-local-app`: launch and verify this project locally.
 
-Too narrow: `check-one-header`, `run-one-command`.
-Too broad: `engineering`, `all-company-workflows`, `everything-about-cloud`.
+Too narrow: `check-one-header`, `run-one-command`. Too broad: `engineering`, `all-company-workflows`, `everything-about-cloud`.
 
 If one task requires many unrelated procedures, split it into multiple skills.
 
@@ -304,8 +291,7 @@ See references for more information.
 
 ## Scripts in skills
 
-Use scripts when repeated code or deterministic validation would save time or
-reduce errors.
+Use scripts when repeated code or deterministic validation would save time or reduce errors.
 
 Script guidelines:
 
@@ -335,56 +321,38 @@ Portable baseline:
 
 - Directory containing `SKILL.md`.
 - Required frontmatter: `name`, `description`.
-- Optional frontmatter: `license`, `compatibility`, `metadata`.
+- Optional frontmatter: `metadata`; add `license` or `compatibility` only when needed for packaging.
 - Relative links to `scripts/`, `references/`, and `assets/`.
 
 Avoid relying on client-specific fields unless requested.
 
 ### Pi notes
 
-Pi loads skills from `~/.pi/agent/skills/`, `~/.agents/skills/`, `.pi/skills/`,
-`.agents/skills/`, package skill directories, settings paths, and explicit
-`--skill` paths. Pi supports `/skill:name` commands. Pi is lenient about some
-validation issues, including name and directory mismatches, but portable skills
-should still keep names strict and matching.
+Pi loads skills from `~/.pi/agent/skills/`, `~/.agents/skills/`, `.pi/skills/`, `.agents/skills/`, package skill directories, settings paths, and explicit `--skill` paths. Pi supports `/skill:name` commands. Pi is lenient about some validation issues, including name and directory mismatches, but portable skills should still keep names strict and matching.
 
 ### OpenCode notes
 
-OpenCode is stricter: `name` must match the skill directory, unknown
-frontmatter fields are ignored, and skills can be hidden or gated by
-permissions. Write OpenCode-compatible skills using the strict baseline.
+OpenCode is stricter: `name` must match the skill directory, unknown frontmatter fields are ignored, and skills can be hidden or gated by permissions. Write OpenCode-compatible skills using the strict baseline.
 
 ### Codex notes
 
-Codex emphasizes context discipline: add only information another agent would
-not already know, avoid auxiliary docs, put trigger logic in `description`, and
-use bundled scripts when agents repeatedly rewrite the same code. Some Codex
-skills include `agents/openai.yaml` for UI metadata; treat that as
-Codex-specific.
+Codex emphasizes context discipline: add only information another agent would not already know, avoid auxiliary docs, put trigger logic in `description`, and use bundled scripts when agents repeatedly rewrite the same code. Some Codex skills include `agents/openai.yaml` for UI metadata; treat that as Codex-specific.
 
 ### Claude Code notes
 
-Claude Code supports extra fields and features such as
-`disable-model-invocation`, `allowed-tools`, `context: fork`, `agent`,
-`argument-hint`, `arguments`, dynamic shell injection, and
-`${CLAUDE_SKILL_DIR}`. Use these only when targeting Claude Code.
+Claude Code supports extra fields and features such as `disable-model-invocation`, `allowed-tools`, `context: fork`, `agent`, `argument-hint`, `arguments`, dynamic shell injection, and `${CLAUDE_SKILL_DIR}`. Use these only when targeting Claude Code.
 
 ### Gemini CLI notes
 
-Gemini discovers built-in, extension, user, and workspace skills. It supports
-`.agents/skills/` as a compatibility alias. Skill activation may ask for user
-consent and grant the skill directory as an allowed path.
+Gemini discovers built-in, extension, user, and workspace skills. It supports `.agents/skills/` as a compatibility alias. Skill activation may ask for user consent and grant the skill directory as an allowed path.
 
 ### VS Code and GitHub Copilot notes
 
-Use skills for on-demand specialized workflows and resources. Use custom
-instructions for always-on coding standards and preferences. Invalid names may
-fail to load silently, so follow strict name rules.
+Use skills for on-demand specialized workflows and resources. Use custom instructions for always-on coding standards and preferences. Invalid names may fail to load silently, so follow strict name rules.
 
 ### Goose notes
 
-Goose recommends `.agents/skills/` for shared compatibility. Keep skills
-focused, direct, and verification-oriented.
+Goose recommends `.agents/skills/` for shared compatibility. Keep skills focused, direct, and verification-oriented.
 
 ## Review checklist
 
@@ -430,14 +398,11 @@ Use lightweight manual tests first. Create 2 or 3 realistic prompts:
 ]
 ```
 
-For output quality, compare with the skill, without the skill, and with the
-previous version if editing an existing skill.
+For output quality, compare with the skill, without the skill, and with the previous version if editing an existing skill.
 
-Check whether the skill triggered when it should, avoided near misses, improved
-behavior, avoided wasted context, and caught real issues with validation.
+Check whether the skill triggered when it should, avoided near misses, improved behavior, avoided wasted context, and caught real issues with validation.
 
-When using subagents for forward-testing, avoid leaking expected answers. Pass
-the skill and raw task artifacts, not your conclusions.
+When using subagents for forward-testing, avoid leaking expected answers. Pass the skill and raw task artifacts, not your conclusions.
 
 Good forward-test prompt:
 
@@ -456,16 +421,11 @@ Review this skill and confirm it fixes the bug where agents forget step 3.
 
 If the skill triggers too rarely or too often, improve the description.
 
-Create should-trigger and should-not-trigger prompts. Strong should-trigger
-prompts use realistic file paths, user context, casual phrasing, cases where the
-user does not name the skill directly, and tasks embedded in larger requests.
+Create should-trigger and should-not-trigger prompts. Strong should-trigger prompts use realistic file paths, user context, casual phrasing, cases where the user does not name the skill directly, and tasks embedded in larger requests.
 
-Strong should-not-trigger prompts are near misses: they share keywords with the
-skill but require a different workflow. Avoid obvious negatives such as weather
-or Fibonacci prompts.
+Strong should-not-trigger prompts are near misses: they share keywords with the skill but require a different workflow. Avoid obvious negatives such as weather or Fibonacci prompts.
 
-Revise the description by generalizing from failures. Do not overfit to exact
-phrases from the eval set.
+Revise the description by generalizing from failures. Do not overfit to exact phrases from the eval set.
 
 ## Final checklist
 
@@ -475,8 +435,9 @@ Before handing back a skill:
 - [ ] `name` is strict lowercase hyphen-case.
 - [ ] Directory name matches `name`.
 - [ ] `description` is specific, trigger-oriented, and under 1024 characters.
-- [ ] Frontmatter uses portable fields unless client-specific behavior is needed.
+- [ ] Frontmatter stays minimal; extra metadata is present only when useful.
 - [ ] `SKILL.md` is concise and focused.
+- [ ] Prose is not hard-wrapped mid-sentence.
 - [ ] Supporting files are necessary and referenced.
 - [ ] Scripts are non-interactive and documented.
 - [ ] Gotchas and validation steps are included.

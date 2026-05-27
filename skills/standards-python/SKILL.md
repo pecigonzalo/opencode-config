@@ -1,8 +1,6 @@
 ---
 name: standards-python
 description: MUST load when writing or reviewing Python code; SHOULD load for Python architectural or API design decisions. Provides idiomatic Python patterns, type annotations, error handling, naming conventions, and docstring guidance based on the Google Python Style Guide.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: python

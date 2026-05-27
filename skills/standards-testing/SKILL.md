@@ -1,8 +1,6 @@
 ---
 name: standards-testing
 description: MUST load when writing unit/integration/E2E tests; SHOULD load for test reviews or debugging. Provides AAA pattern, coverage goals, and testing checklists.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: testing
@@ -33,10 +31,7 @@ metadata:
 
 ## Principles
 
-**Test behavior, not implementation**: Focus on what code does, not how
-**Keep tests simple**: One assertion per test, clear names, minimal setup
-**Independent tests**: No shared state, run in any order
-**Fast and reliable**: Quick execution, no flaky tests, deterministic
+**Test behavior, not implementation**: Focus on what code does, not how **Keep tests simple**: One assertion per test, clear names, minimal setup **Independent tests**: No shared state, run in any order **Fast and reliable**: Quick execution, no flaky tests, deterministic
 
 ## Test Structure (AAA Pattern)
 
@@ -126,13 +121,6 @@ test('test user', () => {});
 
 ## Best Practices
 
-✅ Test one thing per test
-✅ Use descriptive test names
-✅ Keep tests independent
-✅ Mock external dependencies
-✅ Test edge cases and errors
-✅ Make tests readable
-✅ Run tests frequently
-✅ Fix failing tests immediately
+✅ Test one thing per test ✅ Use descriptive test names ✅ Keep tests independent ✅ Mock external dependencies ✅ Test edge cases and errors ✅ Make tests readable ✅ Run tests frequently ✅ Fix failing tests immediately
 
 **Golden Rule**: If you can't test it easily, refactor it.

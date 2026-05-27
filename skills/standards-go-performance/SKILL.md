@@ -1,8 +1,6 @@
 ---
 name: standards-go-performance
 description: MUST load when diagnosing Go performance issues or tuning GC; SHOULD load for performance reviews or allocation-sensitive code. Provides pprof/trace workflows, allocation control, GC tuning guardrails, and runtime metrics patterns.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: go-performance
@@ -183,8 +181,7 @@ func process(data []byte) {
 
 These micro-optimizations are worth applying only where benchmarks or heap profiles confirm allocation is a bottleneck — not speculatively.
 
-**Prefer `strconv` over `fmt` for primitive↔string conversions:**
-`fmt.Sprint`/`Sprintf` use reflection and allocate more than their `strconv` equivalents:
+**Prefer `strconv` over `fmt` for primitive↔string conversions:** `fmt.Sprint`/`Sprintf` use reflection and allocate more than their `strconv` equivalents:
 ```go
 // ❌ ~143 ns/op, 2 allocs/op
 s := fmt.Sprint(rand.Int())
@@ -194,8 +191,7 @@ s := strconv.Itoa(rand.Int())
 ```
 Other useful alternatives: `strconv.FormatInt`, `strconv.AppendInt` (appends to an existing `[]byte`, zero allocs).
 
-**Convert constant strings to `[]byte` once, outside the loop:**
-`[]byte("constant")` allocates on every call. Hoist it:
+**Convert constant strings to `[]byte` once, outside the loop:** `[]byte("constant")` allocates on every call. Hoist it:
 ```go
 // ❌ New allocation each iteration
 for range items {
@@ -216,8 +212,7 @@ m := make(map[string]Entry, len(files))
 ```
 Note: map capacity is a *hint* — the runtime approximates bucket count but does not guarantee zero resizes, unlike slices where capacity is an exact allocation.
 
-**Preallocate slices when using append in loops:**
-Slice capacity is an exact allocation; `append` incurs zero reallocations until capacity is reached:
+**Preallocate slices when using append in loops:** Slice capacity is an exact allocation; `append` incurs zero reallocations until capacity is reached:
 ```go
 // ❌ Repeated doubling reallocations
 out := make([]Result, 0)
@@ -228,8 +223,7 @@ out := make([]Result, 0, len(input))
 for _, v := range input { out = append(out, process(v)) }
 ```
 
-**Pass values, not pointers, for small fixed-size types:**
-`string`, `io.Reader`, and `time.Time` are already small fixed-size headers. Passing `*string` or `*io.Reader` adds indirection with no benefit and may cause the pointee to escape to the heap:
+**Pass values, not pointers, for small fixed-size types:** `string`, `io.Reader`, and `time.Time` are already small fixed-size headers. Passing `*string` or `*io.Reader` adds indirection with no benefit and may cause the pointee to escape to the heap:
 ```go
 // ❌ Unnecessary pointer — pointee may escape, callers must deref
 func process(s *string) { fmt.Println(*s) }
@@ -257,8 +251,7 @@ Reduce lock contention and avoid unnecessary synchronization overhead.
 
 **How:**
 
-**Atomic operations for single-value counters:**
-Use `sync/atomic` typed operations (Go 1.19+) for simple shared scalars — faster than a mutex for non-compound operations:
+**Atomic operations for single-value counters:** Use `sync/atomic` typed operations (Go 1.19+) for simple shared scalars — faster than a mutex for non-compound operations:
 
 ```go
 import "sync/atomic"
@@ -271,8 +264,7 @@ func (c *Counter) Value() int64 { return c.n.Load() }
 
 Limit atomics to simple load/store/add on a single field. For compound operations (read-then-write, multi-field updates) use a mutex.
 
-**Sharded locks for high-contention maps:**
-When a single `sync.RWMutex` on a map is the bottleneck, shard the map across N independent mutexes:
+**Sharded locks for high-contention maps:** When a single `sync.RWMutex` on a map is the bottleneck, shard the map across N independent mutexes:
 
 ```go
 const numShards = 256
@@ -362,8 +354,7 @@ func process(items []Item) {
 }
 ```
 
-**Batch operations:**
-Reduce per-call overhead (network round-trips, syscalls, lock acquisitions) by processing multiple items in one call:
+**Batch operations:** Reduce per-call overhead (network round-trips, syscalls, lock acquisitions) by processing multiple items in one call:
 ```go
 // ❌ N round-trips
 for _, item := range items { db.Insert(ctx, item) }
@@ -372,8 +363,7 @@ for _, item := range items { db.Insert(ctx, item) }
 db.BatchInsert(ctx, items)
 ```
 
-**Zero-copy buffer reuse:**
-Reset a slice to zero length while keeping its backing array, avoiding reallocation:
+**Zero-copy buffer reuse:** Reset a slice to zero length while keeping its backing array, avoiding reallocation:
 ```go
 type Parser struct{ buf []byte }
 
@@ -412,9 +402,9 @@ Use the execution tracer to diagnose scheduler stalls, GC pauses, and goroutine 
 **How:**
 - Collect: `go test -trace trace.out ./pkg && go tool trace trace.out`
 - In the trace UI, inspect:
-  - **Goroutine states**: runnable (waiting for P) vs blocked (syscall/chan/mutex)
-  - **GC events**: STW mark setup, mark termination pause durations
-  - **Network poller**: time goroutines spend waiting on I/O
+- **Goroutine states**: runnable (waiting for P) vs blocked (syscall/chan/mutex)
+- **GC events**: STW mark setup, mark termination pause durations
+- **Network poller**: time goroutines spend waiting on I/O
 - For in-process tracing: use `runtime/trace` package with `trace.Start` / `trace.Stop`
 
 **Pitfalls:**
@@ -447,11 +437,11 @@ metrics.Read(samples)
 ```
 
 - Key signals to expose:
-  - `/gc/cycles/total:events` — GC frequency
-  - `/memory/classes/heap/objects:bytes` — live heap
-  - `/memory/classes/heap/released:bytes` — memory returned to OS
-  - `/sched/goroutines:goroutines` — goroutine count (leak detection)
-  - `/cpu/classes/gc/total:cpu-seconds` — GC CPU cost
+- `/gc/cycles/total:events` — GC frequency
+- `/memory/classes/heap/objects:bytes` — live heap
+- `/memory/classes/heap/released:bytes` — memory returned to OS
+- `/sched/goroutines:goroutines` — goroutine count (leak detection)
+- `/cpu/classes/gc/total:cpu-seconds` — GC CPU cost
 - Wire to Prometheus or your metrics backend; see `standards-observability` for infrastructure patterns
 
 **Pitfalls:**
@@ -477,8 +467,7 @@ Adjust Go runtime parameters when defaults are a measured bottleneck — not bef
 - Set via env var: `GOMAXPROCS=16 ./myservice`, or programmatically: `runtime.GOMAXPROCS(n)`.
 - In containers, the default reads host CPU count — consider `automaxprocs` (`go.uber.org/automaxprocs`) to read cgroup limits.
 
-**debug.SetGCPercent:**
-Controls the GC trigger ratio programmatically (same effect as `GOGC` env var):
+**debug.SetGCPercent:** Controls the GC trigger ratio programmatically (same effect as `GOGC` env var):
 ```go
 import "runtime/debug"
 
@@ -488,8 +477,7 @@ defer debug.SetGCPercent(100) // restore after
 ```
 Use sparingly; prefer `GOGC` env var for persistent tuning and `GOMEMLIMIT` for container environments.
 
-**runtime.MemStats for ad-hoc diagnostics:**
-For one-off investigations when `runtime/metrics` is not yet wired up:
+**runtime.MemStats for ad-hoc diagnostics:** For one-off investigations when `runtime/metrics` is not yet wired up:
 ```go
 var m runtime.MemStats
 runtime.ReadMemStats(&m)
@@ -530,7 +518,7 @@ GOMEMLIMIT=838860800 ./myservice
 ```
 gc 14 @12.345s 2%: 0.1+2.1+0.3 ms clock, 0.8+1.5/2.0/0.1+2.4 ms cpu, 512->512->256 MB, 512 MB goal
 ```
-  - Field 3 is GC CPU%; field 7 shows heap before→after→live; confirm pause times are acceptable.
+- Field 3 is GC CPU%; field 7 shows heap before→after→live; confirm pause times are acceptable.
 
 **Pitfalls:**
 - Setting `GOMEMLIMIT` too close to the container limit — the GC will thrash trying to stay under it
@@ -556,7 +544,7 @@ Feed a real production CPU profile back into the compiler to enable inlining and
    ```bash
    go build ./cmd/myservice        # Go 1.21+ picks up default.pgo automatically
    ```
-   Or specify explicitly (Go 1.20+):
+Or specify explicitly (Go 1.20+):
    ```bash
    go build -pgo=default.pgo ./cmd/myservice
    ```

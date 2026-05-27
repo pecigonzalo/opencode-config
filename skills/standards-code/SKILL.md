@@ -1,8 +1,6 @@
 ---
 name: standards-code
-description: MUST load for any code writing or refactoring; SHOULD load for code reviews. Provides modular design, functional patterns, and maintainability checklists.
-license: MIT
-compatibility: opencode
+description: MUST load for any code writing or refactoring; SHOULD load for code reviews. Provides language-neutral maintainability rules for testable boundaries, cohesive units, explicit dependencies, clear errors, and minimal change scope.
 metadata:
   role: standards
   domain: code-quality
@@ -11,166 +9,64 @@ metadata:
 
 # Code Standards
 
-**Provides:** Modular design principles, functional patterns, naming conventions, and error handling standards.
+Scope: language-neutral baseline before language-specific standards.
 
-## Quick Reference
+## Quick reference
 
-**Core Philosophy**: Modular, Functional, Maintainable
-**Golden Rule**: If you can't easily test it, refactor it
+**Golden rule**: Code is maintainable when its behavior is easy to verify.
 
-**Critical Patterns** (use these):
-- ✅ Pure functions (same input = same output, no side effects)
-- ✅ Immutability (create new data, don't modify)
-- ✅ Composition (build complex from simple)
-- ✅ Small functions (< 50 lines)
-- ✅ Explicit dependencies (dependency injection)
+Prefer:
+- Small cohesive units with one reason to change.
+- Explicit inputs, outputs, errors, and dependencies.
+- Clear boundaries between pure logic and side effects.
+- Simple control flow and early exits over deep nesting.
+- Minimal, focused changes that preserve nearby conventions.
 
-**Anti-Patterns** (avoid these):
-- ❌ Mutation, side effects, deep nesting
-- ❌ God modules, global state, large functions
+Avoid:
+- Hidden global state and surprising side effects.
+- Broad rewrites unrelated to the task.
+- Error swallowing or ambiguous failure modes.
+- Premature abstraction or framework cleverness.
 
----
+## Design checks
 
-## Core Philosophy
+Before editing:
 
-**Modular**: Everything is a component - small, focused, reusable
-**Functional**: Pure functions, immutability, composition over inheritance
-**Maintainable**: Self-documenting, testable, predictable
+- Identify the existing convention in the touched area.
+- Find the narrowest seam for the change.
+- Decide what test or command proves the behavior.
+- Load language/framework standards when available.
 
-## Principles
+While editing:
 
-### Modular Design
-- Single responsibility per module
-- Clear interfaces (explicit inputs/outputs)
-- Independent and composable
-- < 100 lines per component (ideally < 50)
+- Keep public interfaces stable unless the task requires a contract change.
+- Validate data at system boundaries.
+- Keep resource ownership obvious: open/close, acquire/release, start/stop.
+- Make concurrency, caching, and retries explicit where used.
+- Name things by domain meaning, not implementation detail.
 
-### Functional Approach
-- **Pure functions**: Same input = same output, no side effects
-- **Immutability**: Create new data, don't modify existing
-- **Composition**: Build complex from simple functions
-- **Declarative**: Describe what, not how
+## Error handling
 
-### Component Structure
-```
-component/
-├── index.js      # Public interface
-├── core.js       # Core logic (pure functions)
-├── utils.js      # Helpers
-└── tests/        # Tests
-```
+- Preserve original error context when wrapping or translating errors.
+- Return/report errors at the level that can act on them.
+- Do not log secrets, tokens, or unnecessary PII.
+- Distinguish validation, permission, conflict, transient, and internal errors when callers need different behavior.
 
-## Patterns
+## Skill links
 
-### Pure Functions
-```javascript
-// ✅ Pure
-const add = (a, b) => a + b;
-const formatUser = (user) => ({ ...user, fullName: `${user.firstName} ${user.lastName}` });
+Load as needed:
 
-// ❌ Impure (side effects)
-let total = 0;
-const addToTotal = (value) => { total += value; return total; };
-```
+- Language skills such as `standards-go`, `standards-python`, `standards-typescript`, or `standards-shell`.
+- `standards-testing` when writing or changing tests.
+- `standards-security` for auth, input, secrets, or sensitive data.
+- `standards-api-design` for public contracts.
+- `standards-database` for persistence changes.
 
-### Immutability
-```javascript
-// ✅ Immutable
-const addItem = (items, item) => [...items, item];
-const updateUser = (user, changes) => ({ ...user, ...changes });
+## Validation
 
-// ❌ Mutable
-const addItem = (items, item) => { items.push(item); return items; };
-```
+Before finishing code work:
 
-### Composition
-```javascript
-// ✅ Compose small functions
-const processUser = pipe(validateUser, enrichUserData, saveUser);
-const isValidEmail = (email) => validateEmail(normalizeEmail(email));
-
-// ❌ Deep inheritance
-class ExtendedUserManagerWithValidation extends UserManager { }
-```
-
-### Declarative
-```javascript
-// ✅ Declarative
-const activeUsers = users.filter(u => u.isActive).map(u => u.name);
-
-// ❌ Imperative
-const names = [];
-for (let i = 0; i < users.length; i++) {
-  if (users[i].isActive) names.push(users[i].name);
-}
-```
-
-## Naming
-
-- **Files**: lowercase-with-dashes.js
-- **Functions**: verbPhrases (getUser, validateEmail)
-- **Predicates**: isValid, hasPermission, canAccess
-- **Variables**: descriptive (userCount not uc), const by default
-- **Constants**: UPPER_SNAKE_CASE
-
-## Error Handling
-
-```javascript
-// ✅ Explicit error handling
-function parseJSON(text) {
-  try {
-    return { success: true, data: JSON.parse(text) };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
-
-// ✅ Validate at boundaries
-function createUser(userData) {
-  const validation = validateUserData(userData);
-  if (!validation.isValid) {
-    return { success: false, errors: validation.errors };
-  }
-  return { success: true, user: saveUser(userData) };
-}
-```
-
-## Dependency Injection
-
-```javascript
-// ✅ Dependencies explicit
-function createUserService(database, logger) {
-  return {
-    createUser: (userData) => {
-      logger.info('Creating user');
-      return database.insert('users', userData);
-    }
-  };
-}
-
-// ❌ Hidden dependencies
-import db from './database.js';
-function createUser(userData) { return db.insert('users', userData); }
-```
-
-## Anti-Patterns
-
-❌ **Mutation**: Modifying data in place
-❌ **Side effects**: console.log, API calls in pure functions
-❌ **Deep nesting**: Use early returns instead
-❌ **God modules**: Split into focused modules
-❌ **Global state**: Pass dependencies explicitly
-❌ **Large functions**: Keep < 50 lines
-
-## Best Practices
-
-✅ Pure functions whenever possible
-✅ Immutable data structures
-✅ Small, focused functions (< 50 lines)
-✅ Compose small functions into larger ones
-✅ Explicit dependencies (dependency injection)
-✅ Validate at boundaries
-✅ Self-documenting code
-✅ Test in isolation
-
-**Golden Rule**: If you can't easily test it, refactor it.
+- The smallest practical verification command has run or is reported skipped.
+- New behavior has a test when practical.
+- Edge cases and error paths changed by the task are covered or noted.
+- The diff does not contain unrelated refactors.

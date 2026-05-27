@@ -1,8 +1,6 @@
 ---
 name: standards-documentation
-description: MUST load when writing READMEs or API docs; SHOULD load for code comments or doc reviews. Provides templates and clarity principles.
-license: MIT
-compatibility: opencode
+description: MUST load when writing READMEs, API docs, guides, release notes, migration notes, or code comments; SHOULD load for documentation reviews. Provides concise structure and clarity rules for useful, maintainable technical docs.
 metadata:
   role: standards
   domain: documentation
@@ -10,151 +8,81 @@ metadata:
 
 # Documentation Standards
 
-**Provides:** README templates, API documentation patterns, code comment guidelines, and technical writing clarity principles.
+Scope: documentation structure and clarity. Use `standards-markdown` for formatting details.
 
-## Quick Reference
+## Quick reference
 
-**Golden Rule**: If users ask the same question twice, document it
+**Golden rule**: Document what helps the reader act correctly.
 
-**Document** (✅ DO):
-- WHY decisions were made
-- Complex algorithms/logic
-- Public APIs, setup, common use cases
+Document:
+- Purpose, setup, usage, public contracts, and common failure modes.
+- Why a non-obvious decision was made.
+- Constraints, compatibility notes, and migration steps.
 
-**Don't Document** (❌ DON'T):
-- Obvious code (i++ doesn't need comment)
-- What code does (should be self-explanatory)
+Avoid:
+- Restating obvious code.
+- Large background sections the reader does not need.
+- Stale examples or unverified commands.
 
-**Principles**: Audience-focused, Show don't tell, Keep current
+## Common structures
 
----
-
-## Principles
-
-**Audience-focused**: Write for users (what/how), developers (why/when), contributors (setup/conventions)
-**Show, don't tell**: Code examples, real use cases, expected output
-**Keep current**: Update with code changes, remove outdated info, mark deprecations
-
-## README Structure
+README:
 
 ```markdown
-# Project Name
-Brief description (1-2 sentences)
+# Project name
 
-## Features
-- Key feature 1
-- Key feature 2
+One or two sentences explaining what this is for.
 
-## Installation
-```bash
-npm install package-name
-```
-
-## Quick Start
-```javascript
-const result = doSomething();
-```
-
+## Quick start
 ## Usage
-[Detailed examples]
-
-## API Reference
-[If applicable]
-
+## Development
 ## Contributing
-[Link to CONTRIBUTING.md]
-
-## License
-[License type]
 ```
 
-## Function Documentation
+Guide:
 
-```javascript
-/**
- * Calculate total price including tax
- * 
- * @param {number} price - Base price
- * @param {number} taxRate - Tax rate (0-1)
- * @returns {number} Total with tax
- * 
- * @example
- * calculateTotal(100, 0.1) // 110
- */
-function calculateTotal(price, taxRate) {
-  return price * (1 + taxRate);
-}
+```markdown
+## Goal
+## Prerequisites
+## Steps
+## Verify
+## Troubleshooting
 ```
 
-## What to Document
+API docs:
 
-### ✅ DO
-- **WHY** decisions were made
-- Complex algorithms/logic
-- Non-obvious behavior
-- Public APIs
-- Setup/installation
-- Common use cases
-- Known limitations
-- Workarounds (with explanation)
+```markdown
+## Endpoint or function
 
-### ❌ DON'T
-- Obvious code (i++ doesn't need comment)
-- What code does (should be self-explanatory)
-- Redundant information
-- Outdated/incorrect info
+Purpose, inputs, response/return value, errors, example, compatibility notes.
+```
+
+Decision/spec:
+
+```markdown
+## Context
+## Decision
+## Alternatives considered
+## Consequences
+## Rollout or migration
+```
 
 ## Comments
 
-### Good
-```javascript
-// Calculate discount by tier (Bronze: 5%, Silver: 10%, Gold: 15%)
-const discount = getDiscountByTier(customer.tier);
+Add comments for:
 
-// HACK: API returns null instead of [], normalize it
-const items = response.items || [];
+- Invariants the code relies on.
+- Workarounds and when to remove them.
+- Surprising side effects or ordering requirements.
+- Links to external algorithms, specs, or incidents.
 
-// TODO: Use async/await when Node 18+ is minimum
-```
+Do not comment what clear code already says.
 
-### Bad
-```javascript
-// Increment i
-i++;
+## Validation
 
-// Get user
-const user = getUser();
-```
+Before finishing docs:
 
-## API Documentation
-
-```markdown
-### POST /api/users
-Create a new user
-
-**Request:**
-```json
-{ "name": "John", "email": "john@example.com" }
-```
-
-**Response:**
-```json
-{ "id": "123", "name": "John", "email": "john@example.com" }
-```
-
-**Errors:**
-- 400 - Invalid input
-- 409 - Email exists
-```
-
-## Best Practices
-
-✅ Explain WHY, not just WHAT
-✅ Include working examples
-✅ Show expected output
-✅ Cover error handling
-✅ Use consistent terminology
-✅ Keep structure predictable
-✅ Update when code changes
-
-**Golden Rule**: If users ask the same question twice, document it.
+- The reader can tell whether the doc applies to them.
+- Required commands/examples are current or explicitly unverified.
+- Public contracts list inputs, outputs, and errors.
+- Any code change that affects docs is reflected in the same update.

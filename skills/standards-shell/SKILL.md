@@ -1,8 +1,6 @@
 ---
 name: standards-shell
 description: MUST load when writing or reviewing shell/bash scripts; SHOULD load for shell script architecture decisions or CI/CD pipeline scripts. Provides Google Shell Style Guide patterns, safety practices, and idiomatic bash.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: shell

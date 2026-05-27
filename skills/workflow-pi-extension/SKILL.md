@@ -8,20 +8,16 @@ metadata:
 
 # Pi Extension Workflow
 
-Use this skill as a short workflow and architecture checklist. Do not duplicate
-Pi API docs here; read the bundled docs and examples before implementing.
+Use this skill as a short workflow and architecture checklist. Do not duplicate Pi API docs here; read the bundled docs and examples before implementing.
 
 ## Required references
 
 Read the relevant Pi docs from the installed Pi package:
 
 - Always read `docs/extensions.md`.
-- Read `docs/tui.md` for custom UI, widgets, overlays, renderers, footers, or
-  editor components.
-- Read `docs/packages.md` for package manifests, dependencies, distribution, or
-  install/update behavior.
-- Read `docs/custom-provider.md` for model providers, OAuth, or custom
-  streaming.
+- Read `docs/tui.md` for custom UI, widgets, overlays, renderers, footers, or editor components.
+- Read `docs/packages.md` for package manifests, dependencies, distribution, or install/update behavior.
+- Read `docs/custom-provider.md` for model providers, OAuth, or custom streaming.
 - Read `docs/keybindings.md` for shortcuts or editor key handling.
 - Inspect the closest file under `examples/extensions/`.
 
@@ -30,18 +26,12 @@ Prefer official examples over invented patterns.
 ## Local design preferences
 
 - Prefer composable/reusable extensions over one-off monoliths.
-- Prefer extension directories with `package.json` over loose `.ts` files once
-  an extension has dependencies, helpers, tests, reusable contracts, or is
-  expected to persist.
+- Prefer extension directories with `package.json` over loose `.ts` files once an extension has dependencies, helpers, tests, reusable contracts, or is expected to persist.
 - Keep extension dependencies self-contained in the extension package.
-- Avoid adding extension-specific dependencies to the global Pi package unless
-  necessary.
-- Factor shared behavior into reusable modules or explicit `pi.events`
-  contracts.
-- Let one extension own each shared capability, such as notifications, status
-  widgets, path protection, configuration, or persistence.
-- Prefer optional integration through `pi.events`; prefer imports for hard
-  dependencies.
+- Avoid adding extension-specific dependencies to the global Pi package unless necessary.
+- Factor shared behavior into reusable modules or explicit `pi.events` contracts.
+- Let one extension own each shared capability, such as notifications, status widgets, path protection, configuration, or persistence.
+- Prefer optional integration through `pi.events`; prefer imports for hard dependencies.
 - Namespace shared event names, for example `notifications:show`.
 - Export constants and TypeScript types for shared event payloads.
 - Keep event payloads JSON-serializable unless there is a strong reason not to.
@@ -86,8 +76,7 @@ Use `"keywords": ["pi-package"]` only when publishing or distributing.
 
 ## Workflow
 
-1. Identify the extension type: tool, command, event hook, shared service, UI,
-   provider, or package.
+1. Identify the extension type: tool, command, event hook, shared service, UI, provider, or package.
 1. Read the matching Pi docs and closest official example.
 1. Check whether an existing extension can be reused or extended.
 1. Design shared capabilities as modules or documented `pi.events` contracts.
@@ -108,8 +97,7 @@ Use `"keywords": ["pi-package"]` only when publishing or distributing.
 - Throw from tool `execute()` to signal tool failure.
 - Use `withFileMutationQueue()` for file-mutating tools.
 - Restore state on `session_start`.
-- Clean up watchers, intervals, sockets, and child processes on
-  `session_shutdown`.
+- Clean up watchers, intervals, sockets, and child processes on `session_shutdown`.
 - Treat `ctx.reload()` as terminal: `await ctx.reload(); return;`.
 
 ## Final review

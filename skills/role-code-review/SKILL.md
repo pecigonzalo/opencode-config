@@ -1,8 +1,6 @@
 ---
 name: role-code-review
 description: MUST load for pull request or code quality reviews; SHOULD load for pre-commit self-review. Provides systematic review methodology with severity categorization.
-license: MIT
-compatibility: opencode
 metadata:
   role: reviewer
   focus: quality-assurance
@@ -113,33 +111,18 @@ For comprehensive security review, use role-security-auditor skill
 ## Common Issues
 
 ### Security (Surface-Level)
-🔴 Hardcoded credentials (obvious)
-🔴 Missing input validation
-🔴 Missing authentication/authorization
+🔴 Hardcoded credentials (obvious) 🔴 Missing input validation 🔴 Missing authentication/authorization
 
 For comprehensive security review, use role-security-auditor skill
 
 ### Code Quality
-🟡 Large functions (>50 lines)
-🟡 Deep nesting (>3 levels)
-🟡 Code duplication
-🟡 Unclear naming
-🟡 Missing documentation
-🟡 Inconsistent style
+🟡 Large functions (>50 lines) 🟡 Deep nesting (>3 levels) 🟡 Code duplication 🟡 Unclear naming 🟡 Missing documentation 🟡 Inconsistent style
 
 ### Testing
-🟡 Missing tests
-🟡 Low coverage (<80%)
-🟡 Flaky tests
-🟡 Tests testing implementation
-🟡 No edge case coverage
+🟡 Missing tests 🟡 Low coverage (<80%) 🟡 Flaky tests 🟡 Tests testing implementation 🟡 No edge case coverage
 
 ### Performance
-🔵 Inefficient algorithms
-🔵 Unnecessary database queries
-🔵 Missing caching
-🔵 Large object allocations
-🔵 No lazy loading
+🔵 Inefficient algorithms 🔵 Unnecessary database queries 🔵 Missing caching 🔵 Large object allocations 🔵 No lazy loading
 
 ## Review Process
 
@@ -171,19 +154,7 @@ For comprehensive security review, use role-security-auditor skill
 
 ## Best Practices
 
-✅ Review within 24 hours
-✅ Provide specific, actionable feedback
-✅ Explain WHY, not just WHAT
-✅ Suggest alternatives
-✅ Acknowledge good work
-✅ Use severity levels (Critical/Warning/Suggestion)
-✅ Test the code if possible
-✅ Check for security issues first
-✅ Consider edge cases
-✅ Think about future maintenance
-✅ Be thorough but kind
-✅ Prioritize critical issues
-✅ Offer help with fixes
+✅ Review within 24 hours ✅ Provide specific, actionable feedback ✅ Explain WHY, not just WHAT ✅ Suggest alternatives ✅ Acknowledge good work ✅ Use severity levels (Critical/Warning/Suggestion) ✅ Test the code if possible ✅ Check for security issues first ✅ Consider edge cases ✅ Think about future maintenance ✅ Be thorough but kind ✅ Prioritize critical issues ✅ Offer help with fixes
 
 ## Security Review Checklist
 

@@ -1,8 +1,6 @@
 ---
 name: standards-security
 description: MUST load for auth, user input, or sensitive data handling; SHOULD load for security reviews or API design. Provides OWASP Top 10 and secure coding checklists.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: security

@@ -1,8 +1,6 @@
 ---
 name: role-architect
 description: MUST load for system design or architectural decisions; SHOULD load for scalability analysis or large refactoring. Applies SOLID principles and design patterns.
-license: MIT
-compatibility: opencode
 metadata:
   role: architect
   focus: structure
@@ -145,9 +143,7 @@ Data Access Layer (Repository)
 Database
 ```
 
-**When to use:** Traditional applications, clear separation of concerns
-**Pros:** Simple, familiar, organized
-**Cons:** Can become rigid, tight coupling between layers
+**When to use:** Traditional applications, clear separation of concerns **Pros:** Simple, familiar, organized **Cons:** Can become rigid, tight coupling between layers
 
 ### MVC (Model-View-Controller)
 
@@ -156,9 +152,7 @@ Database
 - **View**: Presentation layer
 - **Controller**: Handles requests, coordinates model and view
 
-**When to use:** Web applications, user-facing systems
-**Pros:** Separation of concerns, testable, parallel development
-**Cons:** Can be overkill for simple apps
+**When to use:** Web applications, user-facing systems **Pros:** Separation of concerns, testable, parallel development **Cons:** Can be overkill for simple apps
 
 ### Microservices
 
@@ -167,9 +161,7 @@ Database
 - Communicate via APIs
 - Deployed independently
 
-**When to use:** Large systems, multiple teams, need for independent scaling
-**Pros:** Scalability, flexibility, technology diversity
-**Cons:** Complexity, distributed system challenges, operational overhead
+**When to use:** Large systems, multiple teams, need for independent scaling **Pros:** Scalability, flexibility, technology diversity **Cons:** Complexity, distributed system challenges, operational overhead
 
 ### Event-Driven
 
@@ -178,9 +170,7 @@ Database
 - Consumers react to events
 - Asynchronous processing
 
-**When to use:** Reactive systems, real-time processing, complex workflows
-**Pros:** Loose coupling, scalability, flexibility
-**Cons:** Complexity, debugging challenges, eventual consistency
+**When to use:** Reactive systems, real-time processing, complex workflows **Pros:** Loose coupling, scalability, flexibility **Cons:** Complexity, debugging challenges, eventual consistency
 
 ---
 
@@ -411,9 +401,7 @@ skill(name: "tool-store")
 
 ## Integration with Other Skills
 
-**With pattern-task-breakdown**: Use architecture to inform task breakdown
-**With role-code-review**: Review code against architectural principles
-**With role-security-auditor**: Ensure architecture supports security requirements
+**With pattern-task-breakdown**: Use architecture to inform task breakdown **With role-code-review**: Review code against architectural principles **With role-security-auditor**: Ensure architecture supports security requirements
 
 ---
 

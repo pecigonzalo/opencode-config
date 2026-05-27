@@ -1,8 +1,6 @@
 ---
 name: role-site-reliability-engineer
 description: MUST load for production readiness, incident response, reliability reviews, SLOs, alerting, capacity, runbooks, deploy safety, rollback planning, or operational risk analysis.
-license: MIT
-compatibility: opencode
 metadata:
   role: site-reliability-engineer
   focus: reliability
@@ -54,6 +52,15 @@ Mitigation: {how we reduce impact}
 Rollback: {how we revert safely}
 Follow-ups: {owner/action}
 ```
+
+## Validation
+
+Before closing reliability work:
+
+- User impact, detection, mitigation, and rollback are clear.
+- Alerts are actionable and tied to user impact or data safety.
+- Runbook or escalation path exists for operational follow-up.
+- Skipped readiness checks are listed with reasons.
 
 ## Skill Links
 

@@ -1,8 +1,6 @@
 ---
 name: role-data-engineer
 description: MUST load for data pipelines, ETL/ELT, analytics schemas, event design, warehouse models, data quality checks, batch jobs, streaming jobs, or data migration workflows.
-license: MIT
-compatibility: opencode
 metadata:
   role: data-engineer
   focus: data-pipelines
@@ -42,13 +40,14 @@ metadata:
 - PII handling, masking, retention, and access controls are defined.
 - Reconciliation exists for critical financial/user/business metrics.
 
-## Backfill Checklist
+## Validation
 
-- [ ] Scope, expected row counts, and duration estimated.
-- [ ] Dry run or sample validation completed when practical.
-- [ ] Job is bounded, resumable, and observable.
-- [ ] Downstream consumers and dashboards are protected from bad intermediate states.
-- [ ] Rollback or correction plan exists.
+Before finalizing data work:
+
+- Grain, source of truth, freshness, and retention are explicit.
+- Idempotency, retries, checkpoints, and late data are handled.
+- Quality checks cover counts, uniqueness, ranges, and relationships.
+- Backfills are bounded, resumable, observable, and have a correction plan.
 
 ## Skill Links
 

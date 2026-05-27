@@ -1,8 +1,6 @@
 ---
 name: standards-go-concurrency
 description: MUST load when writing goroutines, channels, or sync primitives in Go; SHOULD load for concurrency code reviews. Provides safe concurrency patterns, leak prevention, and race-detection checklists.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: go-concurrency
@@ -351,7 +349,7 @@ func (m *SMap) Get(k string) string {
 }
 ```
 
-  - Never copy a struct that embeds `sync.Mutex` — pass by pointer.
+- Never copy a struct that embeds `sync.Mutex` — pass by pointer.
 
 ```go
 // ✅ Correct: minimal critical section, no I/O under lock

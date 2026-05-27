@@ -1,8 +1,6 @@
 ---
 name: standards-typescript
 description: MUST load when writing or reviewing TypeScript; SHOULD load for TS API design. Provides idiomatic patterns, type system, naming, and Google TS Style Guide rules.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: typescript

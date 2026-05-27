@@ -1,8 +1,6 @@
 ---
 name: standards-analysis
 description: MUST load for complex problem analysis or architectural decisions; SHOULD load for bug investigation or requirement gathering. Provides decomposition and trade-off frameworks.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: analysis

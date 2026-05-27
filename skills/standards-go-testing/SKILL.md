@@ -1,8 +1,6 @@
 ---
 name: standards-go-testing
 description: MUST load when writing Go tests, benchmarks, or fuzz targets; SHOULD load for Go test reviews. Provides idiomatic Go testing patterns including table tests, subtests, testdata, fakes, benchmarks, and fuzzing.
-license: MIT
-compatibility: opencode
 metadata:
   role: standards
   domain: go-testing
@@ -573,7 +571,7 @@ Benchmarks are first-class tests in Go; use them to guard performance-sensitive 
 
 - Performance-critical code paths, allocation budgets, or before/after comparison of an optimization.
 - Write `func BenchmarkX(b *testing.B)`. Call `b.ResetTimer()` after any setup. Use `b.ReportAllocs()` (or pass `-benchmem`) to surface heap allocations. Assign results to a package-level sink to prevent the compiler from eliminating the call. In Go 1.24+, prefer `b.Loop()` over `for i := 0; i < b.N; i++`. Use `b.RunParallel(func(pb *testing.PB) { for pb.Next() { ... } })` to benchmark concurrent throughput or measure lock contention. Call `b.SetParallelism(n)` to control goroutine count if needed.
-  - Use `b.Run("name", func(b *testing.B) { ... })` to group related benchmark variants (e.g., different input sizes or encoding formats) under one parent — results appear in a hierarchy and can be filtered individually with `-bench=BenchmarkX/name`.
+- Use `b.Run("name", func(b *testing.B) { ... })` to group related benchmark variants (e.g., different input sizes or encoding formats) under one parent — results appear in a hierarchy and can be filtered individually with `-bench=BenchmarkX/name`.
 - Including setup/teardown inside the timed loop inflates `ns/op`.
 - High-variance I/O (disk, network) makes `ns/op` unstable.
 - Not sinking the result lets the compiler optimize away the call, reporting unrealistically low numbers.
