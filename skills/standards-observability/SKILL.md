@@ -9,60 +9,62 @@ metadata:
   priority: high
 ---
 
-# Observability Standards
+# Observability standards
 
 **Provides:** Structured logging patterns, metrics design, error tracking, performance monitoring, and debugging strategies.
 
-## Quick Reference
+## Quick reference
 
-**Core Philosophy**: Observable, Debuggable, Measurable  
-**Golden Rule**: If you can't see it in production, you can't fix it
+**Core philosophy**: Observable, debuggable, measurable
+**Golden rule**: If you can't see it in production, you can't fix it
 
-**Critical Patterns** (use these):
-- ✅ Structured logging (JSON, contextual data)
-- ✅ Meaningful error messages (context, not just "failed")
-- ✅ Business metrics (what matters to users/ops)
-- ✅ Tracing across services (request IDs, correlation)
-- ✅ Alerts on patterns (thresholds, anomalies)
+**Critical patterns** (use these):
 
-**Anti-Patterns** (avoid these):
-- ❌ Silent failures (no logging, no monitoring)
-- ❌ Generic error messages ("Error" or "Failed")
-- ❌ Logging everything (noise hides signals)
-- ❌ Metrics with no context (raw numbers)
-- ❌ No correlation between requests (can't trace issues)
+- ✅ Structured logging with bounded, non-sensitive context
+- ✅ Meaningful error messages with safe diagnostic details
+- ✅ Business SLIs/SLOs and metrics tied to user outcomes
+- ✅ Low-cardinality metric labels and normalized route names
+- ✅ OpenTelemetry or W3C trace context across service boundaries
+- ✅ Alerts on user-impacting symptoms with owners and runbooks
+
+**Anti-patterns** (avoid these):
+
+- ❌ Silent failures with no logs, metrics, or traces
+- ❌ Generic error messages such as "Error" or "Failed"
+- ❌ Raw PII, secrets, tokens, or payloads in logs
+- ❌ Logging everything until noise hides signals
+- ❌ High-cardinality labels such as raw URLs, IDs, or emails
+- ❌ Shared mutable logger context across concurrent requests
 
 ---
 
-## Core Philosophy
+## Logging standards
 
-**Observable**: Every significant action is logged and measurable  
-**Debuggable**: Logs contain enough context to diagnose issues  
-**Measurable**: Metrics track what matters for users and operations  
-
-## Logging Standards
-
-### Structured Logging
+### Structured logging
 
 **✅ DO: Use structured (JSON) logging**
 ```javascript
-// ✅ Good - Structured, contextual
+// ✅ Good - Structured, contextual, and safe for routine logs
+const start = performance.now();
+
 logger.info({
   event: 'user_created',
   userId: user.id,
-  email: user.email,
+  emailDomain: getEmailDomain(user.email),
   timestamp: new Date().toISOString(),
-  duration: performance.now(),
+  durationMs: performance.now() - start,
   environment: process.env.NODE_ENV
 });
 
-// ✅ Good - Template with context
+// ✅ Good - Template with bounded context
 logger.info('User created', {
   userId: user.id,
-  email: user.email,
-  source: 'signup_form'
+  source: 'signup_form',
+  plan: user.plan
 });
 ```
+
+Only log data allowed by the service data-classification policy. Redact, hash, or omit raw PII such as emails, phone numbers, tokens, payment data, and request payloads.
 
 **❌ DON'T: Use free-form text logging**
 ```javascript
@@ -76,7 +78,7 @@ logger.log('User ' + user.id + ' was created at ' + new Date());
 logger.error('Something went wrong');
 ```
 
-### Log Levels
+### Log levels
 
 Use appropriate log levels to control noise:
 
@@ -84,7 +86,7 @@ Use appropriate log levels to control noise:
   ```javascript
   logger.error('Database connection failed', {
     database: 'users-db',
-    error: error.message,
+    errorMessage: sanitize(error.message),
     retry: 3,
     nextRetry: '5s'
   });
@@ -117,25 +119,28 @@ Use appropriate log levels to control noise:
   });
   ```
 
-### Log Context & Correlation
+### Log context and correlation
 
 **✅ DO: Include correlation IDs for request tracing**
 ```javascript
-// Middleware: Add correlation ID to all logs in request
+// Middleware: attach a request-scoped child logger.
 function requestContextMiddleware(req, res, next) {
-  const requestId = req.headers['x-request-id'] || generateId();
-  
-  // Add to logger context (all logs will include this)
-  logger.setContext({ requestId, userId: req.user?.id });
-  
+  const inboundRequestId = req.headers['x-request-id'];
+  const requestId = isValidRequestId(inboundRequestId)
+    ? inboundRequestId
+    : generateId();
+
+  req.log = logger.child({ requestId, userId: req.user?.id });
   res.setHeader('x-request-id', requestId);
   next();
 }
 
-// In application code - requestId automatically included
-logger.info('Processing order', { orderId: '123' });
+// In application code - requestId is included by the child logger.
+req.log.info('Processing order', { orderId: '123' });
 // Output includes: { requestId: 'abc123', userId: 'user456', orderId: '123' }
 ```
+
+Do not store request context in shared mutable logger state. Use child loggers, `AsyncLocalStorage`, or OpenTelemetry context propagation so concurrent requests cannot leak `userId`, `requestId`, or trace context.
 
 **✅ DO: Include relevant context for debugging**
 ```javascript
@@ -145,14 +150,14 @@ logger.error('Payment processing failed', {
   amount: order.total,
   paymentGateway: 'stripe',
   errorCode: error.code,
-  errorMessage: error.message,
+  errorMessage: sanitize(error.message),
   retryable: error.retryable,
   attempt: attempt,
   maxAttempts: MAX_RETRIES
 });
 ```
 
-### What to Log
+### What to log
 
 **✅ DO log:**
 - User actions (login, signup, purchase, upload)
@@ -164,15 +169,17 @@ logger.error('Payment processing failed', {
 
 **❌ DON'T log:**
 - Sensitive data (passwords, API keys, PII without redaction)
+- Full request/response payloads unless explicitly sampled and redacted
 - Internal implementation details (loop counters, temp variables)
 - Every function call (use DEBUG level, disable in production)
 - Duplicate information (already in metrics)
+- Unbounded values that create noisy searches or retention problems
 
 ---
 
-## Error Tracking Standards
+## Error tracking standards
 
-### Structured Error Messages
+### Structured error messages
 
 **✅ DO: Provide actionable error context**
 ```javascript
@@ -210,42 +217,42 @@ throw new Error('JSON.parse failed');
 throw new Error('Database error');
 ```
 
-### Error Handling Pattern
+### Error handling pattern
 
 ```javascript
 // ✅ Good - Clear separation of concerns
 async function processPayment(order) {
   try {
     const result = await paymentGateway.charge(order);
-    
+
     logger.info('Payment successful', {
       orderId: order.id,
       amount: order.total,
       transactionId: result.id
     });
-    
+
     return { success: true, transactionId: result.id };
-    
+
   } catch (error) {
-    // Categorize error for monitoring
+    // Categorize error for monitoring.
     const isRetryable = error.code === 'network_error' || error.code === 'timeout';
     const isFatal = error.code === 'card_declined' || error.code === 'invalid_card';
-    
+
     logger.error('Payment failed', {
       orderId: order.id,
       amount: order.total,
       errorCode: error.code,
-      errorMessage: error.message,
+      errorMessage: sanitize(error.message),
       isRetryable,
       isFatal,
-      stack: error.stack
+      stack: shouldIncludeStack() ? redact(error.stack) : undefined
     });
-    
-    // Return structured error instead of throwing
+
+    // At boundaries, return structured errors; inside services, wrap or rethrow when callers need retry/recovery control.
     return {
       success: false,
       code: error.code,
-      message: error.message,
+      message: userSafeMessage(error),
       retryable: isRetryable,
       fatal: isFatal
     };
@@ -255,9 +262,9 @@ async function processPayment(order) {
 
 ---
 
-## Metrics Standards
+## Metrics standards
 
-### Business Metrics (What Matters)
+### Business metrics
 
 Track metrics that indicate user value and business health:
 
@@ -269,12 +276,13 @@ metrics.increment('users.login', 1);
 metrics.increment('orders.created', 1);
 metrics.gauge('active_users', activeUserCount);
 
-// Conversion metrics
-metrics.gauge('conversion_rate', (purchased / visited) * 100);
-
-// Quality metrics
-metrics.gauge('error_rate', (errors / requests) * 100);
-metrics.gauge('payment_success_rate', (succeeded / total) * 100);
+// Conversion and quality events; derive rates in the metrics backend.
+metrics.increment('checkout.started', 1);
+metrics.increment('checkout.completed', 1);
+metrics.increment('payments.succeeded', 1);
+metrics.increment('payments.failed', 1, { reason: 'card_declined' });
+metrics.increment('api.requests', 1, { statusClass: '2xx' });
+metrics.increment('api.requests', 1, { statusClass: '5xx' });
 ```
 
 **❌ DON'T: Track only technical metrics**
@@ -287,7 +295,7 @@ metrics.increment('loop_iterations');
 metrics.increment('variable_assignments');
 ```
 
-### Performance Metrics
+### Performance metrics
 
 **✅ DO: Measure operations that affect users**
 ```javascript
@@ -296,10 +304,14 @@ const timer = metrics.startTimer('database.query.duration');
 const results = await db.query('SELECT * FROM users WHERE active = true');
 timer.end({ operation: 'select_active_users' });
 
-// ✅ Good - API response times by endpoint
+// ✅ Good - API response times by normalized endpoint
 const apiTimer = metrics.startTimer('api.request.duration');
 await handleRequest();
-apiTimer.end({ method: req.method, path: req.path, status: res.status });
+apiTimer.end({
+  method: req.method,
+  route: routeTemplate(req),
+  status: res.statusCode
+});
 
 // ✅ Good - Queue depth and processing time
 metrics.gauge('job_queue.depth', queue.length);
@@ -308,19 +320,21 @@ await processJob(job);
 jobTimer.end({ jobType: job.type });
 ```
 
-### Metric Guidelines
+### Metric guidelines
 
-- **Count**: How many times (requests, errors, conversions)
+- **Counter**: Monotonic cumulative values (requests, errors, conversions)
 - **Gauge**: Current value (queue length, memory, active connections)
 - **Histogram**: Distribution (response times, payload sizes)
-- **Counter**: Cumulative (total requests served)
+- **Summary**: Client-side quantiles when the backend cannot aggregate histograms
+
+Keep metric label values low-cardinality and bounded. Use route templates, status classes, error codes, and enum-like values. Do not tag metrics with raw URLs, emails, UUIDs, payload values, stack traces, or unconstrained user input.
 
 **Pattern:**
 ```javascript
 // ✅ Good - Clear metric names with tags
 metrics.timing('api.request', duration, {
   method: 'POST',
-  path: '/api/users',
+  route: '/api/users',
   status: 201
 });
 
@@ -336,49 +350,54 @@ metrics.increment('errors', 1, {
 
 ---
 
-## Distributed Tracing
+## Distributed tracing
 
-### Request Correlation
+### Request correlation
 
-**✅ DO: Trace requests across services**
+**✅ DO: Prefer OpenTelemetry and W3C Trace Context**
+
+Use framework auto-instrumentation first. When manual propagation is needed, inject and extract W3C `traceparent`/`tracestate` headers rather than inventing custom trace headers.
+
 ```javascript
-// 1. Entry point: Generate or extract trace ID
-app.use((req, res, next) => {
-  const traceId = req.headers['x-trace-id'] || generateId();
-  const spanId = generateId();
-  
-  res.setHeader('x-trace-id', traceId);
-  req.traceId = traceId;
-  req.spanId = spanId;
-  
-  next();
-});
+// 1. Entry point: extract W3C trace context with OpenTelemetry.
+app.use(otelHttpMiddleware());
 
-// 2. Service calls: Propagate trace ID
+// 2. Service calls: propagate the active trace context.
 async function callUserService(userId) {
+  const headers = {};
+  otel.propagation.inject(otel.context.active(), headers);
+
   const result = await fetch('http://user-service/users/' + userId, {
-    headers: {
-      'x-trace-id': req.traceId,
-      'x-span-id': generateId() // New span for this service
-    }
+    headers
   });
   return result;
 }
 
-// 3. Logs include trace context
+// 3. Logs include trace context from the active span.
+const span = otel.trace.getActiveSpan();
 logger.info('User retrieved', {
-  traceId: req.traceId,
-  spanId: req.spanId,
+  traceId: span?.spanContext().traceId,
+  spanId: span?.spanContext().spanId,
   userId,
-  duration
+  durationMs
 });
 ```
 
+If custom `x-request-id` or `x-trace-id` headers are required for legacy systems, validate length and format before echoing or storing them. Regenerate invalid IDs to avoid log injection and cardinality problems.
+
 ---
 
-## Performance Profiling
+## Performance profiling and checklists
 
-### Checklist: Production Observability
+### Profiling guidance
+
+- Use distributed traces to find slow spans before adding logs.
+- Capture CPU, heap, and allocation profiles for reproducible hotspots.
+- Prefer sampling profiles in production over always-on verbose diagnostics.
+- Correlate profiles with deploy versions, feature flags, and traffic shape.
+- Redact heap dumps and query samples before sharing or storing them.
+
+### Production observability checklist
 
 - [ ] All errors logged with context (not silent failures)
 - [ ] Business metrics tracked (not just technical metrics)
@@ -391,7 +410,7 @@ logger.info('User retrieved', {
 - [ ] Alerts configured on key metrics
 - [ ] Dashboards show user-visible metrics
 
-### Debugging Checklist
+### Debugging checklist
 
 - [ ] Logs contain request IDs for correlation
 - [ ] Error stack traces preserved (not swallowed)
@@ -403,33 +422,42 @@ logger.info('User retrieved', {
 
 ---
 
-## Alerts & Monitoring
+## Alerts and monitoring
 
-### Alert Guidelines
+### Alert guidelines
+
+Alerts need a user-impacting symptom, threshold, time window, owner, and runbook. Prefer SLO burn-rate alerts and symptoms over raw component metrics.
 
 **✅ DO: Alert on problems, not noise**
 ```javascript
 // ✅ Good - Alert on user-impacting issues
 {
-  name: 'High Error Rate',
-  condition: 'error_rate > 0.05', // >5% errors
+  name: 'High 5xx Error Rate',
+  condition: '5xx_error_rate > 0.05 for 5m',
   severity: 'critical',
-  action: 'page_oncall'
+  owner: 'platform-oncall',
+  action: 'page_oncall',
+  runbook: 'https://runbooks.example.com/api-5xx',
+  dashboard: 'https://dashboards.example.com/api-health'
 }
 
 {
   name: 'Payment Processing Slow',
-  condition: 'payment_processing_time_p99 > 5000ms', // >5s
+  condition: 'payment_processing_time_p99 > 5000ms for 10m',
   severity: 'warning',
-  action: 'notify_team'
+  owner: 'payments-team',
+  action: 'notify_team',
+  runbook: 'https://runbooks.example.com/payment-latency'
 }
 
-// ✅ Good - Alert on system health
+// ✅ Good - Alert on SLO burn rate
 {
-  name: 'High Memory Usage',
-  condition: 'memory_usage > 0.85', // >85%
-  severity: 'warning',
-  action: 'auto_scale'
+  name: 'Availability SLO Burn Rate',
+  condition: 'availability_error_budget_burn_rate > 14 for 10m',
+  severity: 'critical',
+  owner: 'service-owner',
+  action: 'page_oncall',
+  runbook: 'https://runbooks.example.com/slo-burn-rate'
 }
 ```
 
@@ -450,114 +478,42 @@ logger.info('User retrieved', {
 
 ---
 
-## Best Practices
-
-✅ **Structured logging** - JSON format with context  
-✅ **Meaningful metrics** - Track business outcomes, not implementation  
-✅ **Request correlation** - Trace across services  
-✅ **Actionable errors** - Errors include context and recovery options  
-✅ **Appropriate log levels** - Control production noise  
-✅ **Sensitive data handling** - Redact PII, credentials, secrets  
-✅ **Performance visibility** - Monitor user-impacting operations  
-✅ **Alert precision** - Alert on problems, not noise  
-✅ **Consistent naming** - Predictable metric/log names  
-✅ **Regular reviews** - Adjust observability based on actual issues  
-
----
-
-## Example: Complete Observability Integration
+## Compact integration example
 
 ```javascript
-// Set up structured logger with context
-const logger = createLogger({
-  format: 'json',
-  defaultContext: {
-    service: 'order-service',
-    environment: process.env.NODE_ENV
-  }
-});
-
-// Add request context middleware
 app.use((req, res, next) => {
-  const traceId = req.headers['x-trace-id'] || generateId();
-  logger.setContext({ traceId, userId: req.user?.id });
-  res.setHeader('x-trace-id', traceId);
-  next();
-});
-
-// Track API performance
-app.use((req, res, next) => {
+  req.log = logger.child({ requestId: validatedRequestId(req), userId: req.user?.id });
+  const route = routeTemplate(req);
   const timer = metrics.startTimer('api.request.duration');
-  
+
   res.on('finish', () => {
-    timer.end({
-      method: req.method,
-      path: req.path,
-      status: res.status
-    });
-    
-    if (res.status >= 400) {
-      metrics.increment('api.errors', 1, {
-        status: res.status,
-        path: req.path
-      });
-    }
+    const statusClass = `${Math.trunc(res.statusCode / 100)}xx`;
+    timer.end({ method: req.method, route, statusClass });
+    metrics.increment('api.requests', 1, { route, statusClass });
   });
-  
+
   next();
 });
 
-// Example: Observable business operation
-async function createOrder(customerId, items) {
-  try {
-    logger.info('Creating order', { customerId, itemCount: items.length });
-    
-    const timer = metrics.startTimer('order.creation.duration');
-    const order = await database.orders.create({
-      customerId,
-      items,
-      createdAt: new Date()
-    });
-    timer.end();
-    
-    metrics.increment('orders.created', 1, {
-      itemCount: items.length
-    });
-    
-    logger.info('Order created successfully', {
-      orderId: order.id,
-      customerId,
-      total: order.total
-    });
-    
-    return { success: true, order };
-    
-  } catch (error) {
-    metrics.increment('order.creation.errors', 1);
-    
-    logger.error('Order creation failed', {
-      customerId,
-      errorCode: error.code,
-      errorMessage: error.message,
-      stack: error.stack
-    });
-    
-    return {
-      success: false,
-      error: error.message,
-      code: error.code
-    };
-  }
+try {
+  req.log.info('Order created', { orderId, customerId });
+  metrics.increment('orders.created', 1);
+} catch (error) {
+  req.log.error('Order creation failed', {
+    customerId,
+    errorCode: error.code,
+    errorMessage: sanitize(error.message),
+    stack: shouldIncludeStack() ? redact(error.stack) : undefined
+  });
+  metrics.increment('order.creation.errors', 1, { code: error.code ?? 'unknown' });
 }
 ```
 
 ---
 
-## Summary
+## See also
 
-Observability enables you to:
-- **See**: What's happening in production
-- **Understand**: Why things are happening
-- **Act**: Fix problems before users notice
-
-**Golden Rule**: If you can't see it in production, you can't fix it.
+- [OpenTelemetry](https://opentelemetry.io/docs/)
+- [W3C Trace Context](https://www.w3.org/TR/trace-context/)
+- [Prometheus naming](https://prometheus.io/docs/practices/naming/)
+- [standards-security](../standards-security/SKILL.md)
