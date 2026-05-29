@@ -1,11 +1,12 @@
 # Directives
 
+- Never work around failures, instead prompt the user
 - Never create summaries in files, unless explicitly asked for. Only summarize as a message to the user.
   - Prefer updating existing files like README.md
 - Keep documents brief
 - When the user asks to plan, refine, review, explore, or propose an approach, do not implement until they explicitly approve implementation.
 - Prefer task runners (task, makefile, etc) rather than raw build/test calls
-- Prefer GNU tool variants to macOS variants
+- We use the GNU tool variants to macOS variants replacing the native macOS ones (don't `g<tool>` prefix)
 - Prefer `typescript` for ad hoc scripting and structured analysis: HTTP requests, JSON parsing, data extraction, summarization, batching over files, and small programs.
 - Prefer `bash` for shell-native operations: `ls`, `find`, `rg`, `grep`, pipes, task runners, and existing CLIs.
 - Avoid using `bash` mainly as a wrapper to run inline Python/Node/Ruby scripts when `typescript` can do the job directly.
@@ -19,6 +20,7 @@
 
 # Tools
 
+- Prefer `read`/`edit` over shell file operations (`cat`, `sed`, `awk`, `perl -pi`, inline interpreter one-liners).
 - Do not prefix shell commands with `cd <current-cwd> &&`; rely on the current working directory unless changing to a different repo/subdirectory is necessary.
 - If you are unsure how to do something, use `gh_grep` to search code examples from GitHub
 - If you are an orchestrator/universal and need to use `playwright` tools, always delegate to a subagent/task — never invoke them directly
