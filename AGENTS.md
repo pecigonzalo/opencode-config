@@ -3,6 +3,7 @@
 - Never created summaries in files, unless explicitly asked for. Only summarize as a message to the user.
   - Prefer updating existing files like README.md
 - Keep documents brief
+- Do not manually wrap Markdown prose at a fixed line length; use semantic paragraphs and let the display render it.
 - Prefer to use tools other than `bash` for exploration and editing
 - Prefer task runners (task, makefile, etc) than raw build/test calls
 - Prefer GNU tool variants to macOS variantls
