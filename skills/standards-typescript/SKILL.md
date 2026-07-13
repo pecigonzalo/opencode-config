@@ -208,8 +208,28 @@ Prefer optional `?` for parameters/fields instead of explicit `| undefined` unio
 ### Enums
 
 - Use plain `enum` — `const enum` is **banned**.
+- Use enums for small, stable domain vocabularies such as persisted identifiers,
+  state names, and resource categories.
+- Prefer a string union for local or ad-hoc values when it is clearer.
 
-Use plain `enum`; avoid `const enum`.
+Use plain enums for stable domain values; avoid `const enum`.
+
+### Readability-first type design
+
+- Use `satisfies` only when preserving inferred literal types materially improves
+  an API. Prefer explicit interfaces or annotations when they are clearer.
+- Do not use `satisfies`, enums, `as const`, or type assertions as runtime
+  validation. Parse and validate configuration, API input, and external data.
+- Prefer named `FooArgs` interfaces for reusable functions with non-trivial
+  parameter objects.
+- Avoid clever inferred public types such as
+  `(typeof Values)[keyof typeof Values]` when an explicit enum or interface is
+  easier to discover and understand.
+- Use `as const` for simple immutable data when literal inference is useful;
+  do not use it as a default object-declaration pattern.
+
+Prefer code that makes domain vocabulary and public contracts obvious to a
+reader over compact inference-heavy declarations.
 
 ### Wrapper Objects
 
