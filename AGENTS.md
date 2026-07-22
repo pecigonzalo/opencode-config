@@ -18,6 +18,25 @@
 - Until a project reaches 1.0.0 or is otherwise marked as publicly released, code does not need to maintain backward compatibility
 - Use behaviour based conventional commits and avoid injecting store or plan references
 
+# Writing
+
+- No em dashes. Use commas, periods, or rewrite.
+- No "noun — dramatic label" constructions: "The SLA — the legal unlock", "Rate limiting — the silent killer"
+- Lead with the answer. Don't restate the question or summarize at the end.
+- No Wh- sentence starters: "What this means is...", "Which brings us to..."
+- No staccato fragmentation for effect: "It worked. Barely." "This. Changes. Everything."
+- No openers: "Great question!", "Certainly!", "Let's dive in", "I'll walk you through"
+- No performed insight: "What this actually means is...", "Here's the real question:", "This is the piece everyone misses"
+- No narrator-from-a-distance: "People tend to...", "Nobody designed this", "We all know..."
+- No vague declaratives: "The implications are significant", "This matters" — name the specific thing
+- No punchy paragraph-enders. Vary how paragraphs close.
+- Active voice. Name the actor, not "mistakes were made"
+- No inanimate objects doing human things: "the decision emerges", "the complaint becomes a fix"
+- No hedging as humility: "in some ways", "one might argue", "it could be said that"
+- No adverbs as intensifiers: deeply, truly, fundamentally, inherently, simply, inevitably, honestly, genuinely
+- Avoid: delve, leverage, unlock, harness, empower, elevate, seamless, robust, cutting-edge, game-changer, landscape, ecosystem, "it's worth noting", "at the end of the day"
+- Write like a knowledgeable person talking plainly
+
 # Tools
 
 - Prefer `read`/`edit` over shell file operations (`cat`, `sed`, `awk`, `perl -pi`, inline interpreter one-liners).
